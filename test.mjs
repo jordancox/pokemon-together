@@ -1,7 +1,7 @@
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
-const {chromium}=require('/root/.npm/_npx/e41f203b7505f1fb/node_modules/playwright');
-const browser=await chromium.launch({executablePath:'/root/.cache/ms-playwright/chromium-1148/chrome-linux/chrome',headless:true,args:['--no-sandbox']});
+const {chromium}=require('/home/jordan/.npm/_npx/e41f203b7505f1fb/node_modules/playwright');
+const browser=await chromium.launch({executablePath:'/home/jordan/.cache/ms-playwright/chromium-1148/chrome-linux/chrome',headless:true,args:['--no-sandbox']});
 const context=await browser.newContext({viewport:{width:1024,height:1366},deviceScaleFactor:1});
 const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
 // Render the code-native SVG icon at the exact manifest sizes.
