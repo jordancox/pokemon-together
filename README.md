@@ -1,14 +1,18 @@
 # Insieme
 
-An iPad app for a parent and a child to learn the Pokémon Trading Card Game together, with the child's own cards, in
-Italian or English. The iPad lies flat between the two players, and each gets half of the screen. A voice runs the game:
-whose turn it is, what to do next, the damage, Weakness, who wins. On screen there are a few big words in capitals and
-the numbers. With the voice switched off, the same lines show as text for the parent to read aloud.
+An iPad helper for a parent and a child learning the Pokémon Trading Card Game together, playing with the child's
+own cards on the table, in Italian or English. The iPad lies flat between the two players, and each gets half of the
+screen. The app knows the cards in the collection. Each player puts a card in front of them and taps the same Pokémon
+on their half. A voice then runs the game. It says whose turn it is and what to do with the cards ("put a Lightning
+Energy card on Pikachu"). It explains each part of a card the first time it matters (HP, the Energy an attack needs,
+damage, Weakness), and it does the damage maths and keeps count. On screen there are only a few big words in capitals
+and the numbers. With the voice switched off, the same lines show as text for the parent to read aloud.
 
-**Level 1, the first battle:** one Basic Pokémon each. A coin decides who starts. Each turn you give one Energy, then
-attack or tap DONE. Weakness doubles the damage, Resistance takes some off, and the first Pokémon knocked out loses.
-The app supplies the Energy. It plays each attack's printed damage plus the common effects (coin flips, healing,
-extra Energy, self-damage, protection). Bench, prize cards, Evolution and Trainers come in later levels.
+**Level 1, the first battle:** one Basic Pokémon each, with some Energy cards beside it. A coin decides who starts.
+Each turn you put one Energy card on your Pokémon, then attack or tap DONE. Weakness doubles the damage, Resistance
+takes some off, and the first Pokémon knocked out loses. It plays each attack's printed damage plus the common effects
+(coin flips, healing, extra Energy, self-damage, protection). Bench, drawing cards, prize cards, Evolution and Trainers
+come in later levels.
 
 ## The cards
 

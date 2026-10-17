@@ -66,15 +66,15 @@ struct BattleView: View {
     var body: some View {
         let me = game.sides[side]
         let mine = game.step == .battle && game.turn == side
-        let arena: CGFloat = game.quiet ? 160 : 220
+        let arena: CGFloat = game.quiet ? 136 : 220
         VStack(spacing: 0) {
-            if game.quiet { Captions(lines: game.captions).frame(height: 60) }
+            if game.quiet { Captions(lines: game.captions).frame(height: 84) }
             // By the middle of the table: HP, the Pokémon, its Energy
             HStack(spacing: 0) {
                 HPView(hp: me.hp, full: me.card?.hp ?? 0).frame(width: 250)
                 ZStack(alignment: .bottom) { // the Pokémon stands on its shadow
                     Ellipse().fill(.black.opacity(0.22)).frame(width: 160, height: 30)
-                    SpriteView(dex: me.card?.dex, box: arena - 40)
+                    SpriteView(dex: me.card?.dex, box: arena - 50)
                         .padding(.bottom, 14)
                         .modifier(Shake(t: CGFloat(game.shakes[side])))
                         .offset(y: game.lunge == side ? -60 : 0)
@@ -221,16 +221,18 @@ struct OverView: View {
     }
 }
 
-/// When the voice is off: the last two lines, for a parent to read out.
+/// When the voice is off: the latest line, for a parent to read out.
 struct Captions: View {
     let lines: [Caption]
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            ForEach(Array(lines.enumerated()), id: \.element.id) { i, c in
+        VStack(alignment: .leading) {
+            if let c = lines.last {
                 Text(c.text)
-                    .font(.system(size: 23, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(i == lines.count - 1 ? 1 : 0.6))
-                    .lineLimit(1).minimumScaleFactor(0.6)
+                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(3).minimumScaleFactor(0.7)
+                    .id(c.id)
+                    .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)

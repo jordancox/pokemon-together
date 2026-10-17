@@ -78,7 +78,7 @@ struct Pop: Equatable {
             step = .battle
             zoom[0] = demo == "zoom"
             if demo == "over" { winner = 0; step = .over }
-            captions = [Caption(id: -2, text: Say.damage(lang, 30)), Caption(id: -1, text: Say.turn(lang, name(0)))]
+            captions = [Caption(id: -2, text: Say.damage(lang, 30)), Caption(id: -1, text: Say.turnFirst(lang, name(0), Say.energyCard(lang, "Lightning")))]
         }
         if UserDefaults.standard.bool(forKey: "auto") { Task { await autoplay() } }
         else if step == .pick { speak(Say.pick(lang)) }
@@ -115,7 +115,7 @@ struct Pop: Equatable {
         guard step == .pick else { return }
         sides[s].card = c
         Sound.play("pop")
-        var line = Say.picked(lang, c.name(lang), c.hp)
+        var line = told.insert("hp").inserted ? Say.pickedTeach(lang, c.name(lang), c.hp) : Say.picked(lang, c.name(lang), c.hp)
         if sides.allSatisfy({ $0.card != nil }) { line += " " + Say.ready(lang) }
         speak(line)
     }
@@ -180,8 +180,9 @@ struct Pop: Equatable {
             await pause(1.6)
             if banner == s { withAnimation { banner = nil } }
         }
-        if told.insert("energy").inserted { await say(Say.turnFirst(lang, name(s))) }
-        else { await say(Say.turn(lang, name(s))) }
+        let e = Say.energyCard(lang, nextEnergy(s))
+        if told.insert("energy").inserted { await say(Say.turnFirst(lang, name(s), e)) }
+        else { await say(Say.turn(lang, name(s), e)) }
     }
 
     func giveEnergy(_ s: Int) async {
@@ -196,7 +197,9 @@ struct Pop: Equatable {
         Sound.play("energy")
         if turns == 0 { await say(Say.firstTurnRule(lang)); return }
         if sides[s].locked { await say(Say.locked(lang, name(s))); return }
-        if usable(s).isEmpty { await say(Say.notEnough(lang)) }
+        let teach = told.insert("cost").inserted // the attacks' Energy circles, explained the first time
+        if usable(s).isEmpty { await say(teach ? Say.notEnoughTeach(lang, name(s), sides[s].energy.count) : Say.notEnough(lang)) }
+        else if teach { told.insert("attack"); await say(Say.canAttackTeach(lang, name(s))) }
         else if told.insert("attack").inserted { await say(Say.canAttackFirst(lang, name(s))) }
         else { await say(Say.canAttack(lang)) }
     }
@@ -304,7 +307,7 @@ struct Pop: Equatable {
         withAnimation { coinOut = false }
         if shielded { await say(Say.shielded(lang, name(f))) }
         else {
-            if weak { await say(Say.weak(lang, name(f), Kind.name(me.type, lang), before)) }
+            if weak { await say((told.insert("weak").inserted ? Say.weakTeach : Say.weak)(lang, name(f), Kind.name(me.type, lang), before)) }
             else if resisted { await say(Say.resisted(lang, name(f), before)) }
             if toughened { await say(Say.toughened(lang, name(f), dmg)) }
             else if !weak && !resisted { await say(dmg > 0 ? Say.damage(lang, dmg) : nothing || a.damage > 0 ? Say.nothing(lang) : "") }
@@ -358,7 +361,10 @@ struct Pop: Equatable {
 
         if sides[f].hp == 0 { await knockOut(f); return }
         if sides[s].hp == 0 { await knockOut(s); return } // it hurt itself too much
-        if dmg > 0 { await say(Say.left(lang, name(f), sides[f].hp)) }
+        if dmg > 0 {
+            if told.insert("count").inserted { await say(Say.leftTeach(lang, name(f), foe.hp, sides[f].damage, sides[f].hp)) }
+            else { await say(Say.left(lang, name(f), sides[f].hp)) }
+        }
         busy = false
         await endTurn()
     }
@@ -388,6 +394,7 @@ struct Pop: Equatable {
     }
 
     func coinFlip() async -> Bool {
+        if told.insert("coin").inserted { await say(Say.coinTeach(lang)) }
         let heads = Bool.random()
         await flip(front: heads, pokemon: false)
         await say(heads ? Say.heads(lang) : Say.tails(lang))
