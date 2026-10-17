@@ -29,10 +29,13 @@ teaching happens in the app, by voice, at the moment it matters, never in a chat
   plays Basic Pokémon with a damaging attack.
 - Card pictures are never committed (public repo). The cloud Mac runs `tools/cards.py art` into `ios/build/Cards`
   before each build. Sprites (PokeAPI, Jordan's OK on 17 Oct) are committed in `ios/App/Sprites`.
-- Getting his cards in: Jordan photographs them (9 to 12 face up) and drops the photos in the screenshot inbox
-  (`~/inbox/`). Read each card's name and number (bottom left) and set symbol or code, find the id with
-  `tools/cards.py find`, add it to `cards.txt`, run `tools/cards.py`, then push. Until then, `cards.txt` has 12 starter
-  cards from the 151 set.
+- **His cards are added in the app** (Jordan, 17 Oct: doing it through Claude was "outside the app… bit clunky"): the
+  + tile on the pick screen opens `AddView` (`Adding.swift`). The camera (VisionKit's DataScanner; not on the
+  simulator, so only tried on his iPad) reads the set code and number at the bottom left ("SVI 038/198"; the language
+  is printed beside the code, "SVI IT", often read as one word) → `Data/sets.json` → the TCGdex id. Or a name is
+  typed. The card, its pictures and sprite are fetched from TCGdex/PokeAPI and saved in the app's Documents
+  (`collection.json`); effects are read with the same `Data/effects.json` as `tools/cards.py`. Until he has two
+  playable cards, the pick screen shows the 12 sample cards built in from `cards.txt`.
 
 ## Building and shipping
 

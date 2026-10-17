@@ -3,6 +3,7 @@
 #
 #   python3 tools/cards.py              cards.txt → ios/App/Data/cards.json, plus any missing sprites in ios/App/Sprites
 #   python3 tools/cards.py find NAME [NUMBER]   look a card up (English and Italian names both work)
+#   python3 tools/cards.py sets         the set codes printed on cards → ios/App/Data/sets.json (for the app's camera)
 #   python3 tools/cards.py art [DIR]    the card pictures, into ios/build/Cards (the cloud Mac runs this before each build)
 #
 # Only the standard library, so it runs as it is on the cloud Mac. The card pictures are never committed: the cloud Mac
@@ -23,27 +24,9 @@ POKEAPI = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/poke
 TYPES_IT = {'Erba': 'Grass', 'Fuoco': 'Fire', 'Acqua': 'Water', 'Lampo': 'Lightning', 'Psico': 'Psychic', 'Lotta': 'Fighting',
             'Oscurità': 'Darkness', 'Metallo': 'Metal', 'Folletto': 'Fairy', 'Drago': 'Dragon', 'Incolore': 'Colorless'}
 
-N = r'(\d+)'
-EFFECTS = [  # (English effect text, what the app does); the whole text has to match
-    (rf"Flip a coin\. If heads, this attack does {N} more damage\.", lambda m: {'kind': 'coinBonus', 'n': int(m[1])}),
-    (r"Flip a coin\. If tails, this attack does nothing\.", lambda m: {'kind': 'coinNothing'}),
-    (rf"Flip {N} coins\. This attack does {N} damage for each heads\.", lambda m: {'kind': 'coins', 'n': int(m[1]), 'each': int(m[2])}),
-    (rf"Flip a coin until you get tails\. This attack does {N} damage for each heads\.", lambda m: {'kind': 'untilTails', 'each': int(m[1])}),
-    (rf"Heal {N} damage from this Pokémon\.", lambda m: {'kind': 'heal', 'n': int(m[1])}),
-    (rf"This Pokémon also does {N} damage to itself\.", lambda m: {'kind': 'self', 'n': int(m[1])}),
-    (r"Search your deck for a Basic (\{\w\} )?Energy card and attach it to this Pokémon\. Then, shuffle your deck\.", lambda m: {'kind': 'attach', 'n': 1}),
-    (rf"Search your deck for up to {N} Basic (\{{\w\}} )?Energy cards and attach them to this Pokémon\. Then, shuffle your deck\.", lambda m: {'kind': 'attach', 'n': int(m[1])}),
-    (r"Attach a Basic (\{\w\} )?Energy card from your discard pile to this Pokémon\.", lambda m: {'kind': 'attach', 'n': 1}),
-    (r"Discard (an|a|\d+|all) (\{\w\} )?Energy (card )?from this Pokémon\.", lambda m: {'kind': 'discard', 'n': 99 if m[1] == 'all' else 1 if m[1] in ('a', 'an') else int(m[1])}),
-    (r"During your next turn, this Pokémon can't attack\.", lambda m: {'kind': 'lockSelf'}),
-    (r"During your opponent's next turn, the Defending Pokémon can't attack\.", lambda m: {'kind': 'lockFoe'}),
-    (r"Flip a coin\. If heads, during your opponent's next turn, prevent all damage (done to this Pokémon by attacks|from and effects of attacks done to this Pokémon)\.", lambda m: {'kind': 'protectCoin'}),
-    (rf"During your opponent's next turn, this Pokémon takes {N} less damage from attacks( \(after applying Weakness and Resistance\))?\.", lambda m: {'kind': 'reduce', 'n': int(m[1])}),
-    (rf"This attack does {N} more damage for each damage counter on your opponent's Active Pokémon\.", lambda m: {'kind': 'plusFoeCounters', 'each': int(m[1])}),
-    (rf"This attack does {N} more damage for each damage counter on this Pokémon\.", lambda m: {'kind': 'plusOwnCounters', 'each': int(m[1])}),
-    (rf"This attack does {N} more damage for each Energy attached to this Pokémon\.", lambda m: {'kind': 'plusOwnEnergy', 'each': int(m[1])}),
-    (r"This attack's damage isn't affected by Weakness or Resistance.*", lambda m: {'kind': 'noWeakness'}),
-]
+# What the app does for each effect, read from the English text: ios/App/Data/effects.json, shared with the app (which
+# reads the effects of cards added on the iPad the same way). The whole text has to match. "$1" is a captured group.
+EFFECTS = json.loads((ROOT / 'ios/App/Data/effects.json').read_text())
 FIX = {}  # by hand, when an effect is worded differently: {'sv03.5-039 Stompy Stomp': {'kind': 'coins', 'n': 2, 'each': 20}}
 
 
@@ -70,9 +53,11 @@ def effect(cid, attack):
     if f"{cid} {attack['name']}" in FIX: return FIX[f"{cid} {attack['name']}"]
     text = (attack.get('effect') or '').strip()
     if not text: return None
-    for pattern, make in EFFECTS:
-        m = re.fullmatch(pattern, text)
-        if m: return make(m)
+    for e in EFFECTS:
+        m = re.fullmatch(e['re'], text)
+        if not m: continue
+        val = lambda v: None if v is None else (lambda x: {'a': 1, 'an': 1, 'all': 99}.get(x) or int(x))(m[int(v[1:])] if v.startswith('$') else v)
+        return {k: v for k, v in (('kind', e['kind']), ('n', val(e.get('n'))), ('each', val(e.get('each')))) if v is not None}
     return {'kind': 'skip'}  # not played yet: the attack does its printed damage only
 
 
@@ -143,6 +128,19 @@ def art(out):
     print(f'{len(jobs)} card pictures in {out} ({sum(sizes) // 1024} KB downloaded)')
 
 
+def sets():
+    """The codes printed on cards (SVI, MEW, MEG…) → TCGdex set ids: ios/App/Data/sets.json, for the app's camera."""
+    ids = [x['id'] for x in json.loads(get(f'{API}/en/sets'))]
+    with ThreadPoolExecutor(6) as ex: full = list(ex.map(lambda i: json.loads(get(f'{API}/en/sets/{i}') or b'{}'), ids))
+    out = {}
+    for s in full:
+        code = (s.get('abbreviation') or {}).get('official')
+        if code and s.get('id') and not re.match(r'^(A\d|B\d|P-A)', s['id']):  # not Pokémon TCG Pocket
+            out.setdefault(code.upper(), s['id'])
+    (ROOT / 'ios/App/Data/sets.json').write_text(json.dumps(out, indent=0, sort_keys=True) + '\n')
+    print(f'{len(out)} set codes → ios/App/Data/sets.json')
+
+
 def find(name, number=None):
     for lang in ('en', 'it'):
         q = f'{API}/{lang}/cards?name={urllib.request.quote(name)}' + (f'&localId={int(number):03d}' if number else '')
@@ -156,5 +154,6 @@ def find(name, number=None):
 if __name__ == '__main__':
     a = sys.argv[1:]
     if a[:1] == ['find']: find(*a[1:3])
+    elif a[:1] == ['sets']: sets()
     elif a[:1] == ['art']: art(a[1] if len(a) > 1 else ROOT / 'ios/build/Cards')
     else: build()

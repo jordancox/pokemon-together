@@ -54,7 +54,13 @@ struct Pop: Equatable {
     var captions: [Caption] = []                            // the last lines, shown when the voice is off
 
     let voice = Voice()
-    let cards = Card.all.filter(\.playable).sorted { ($0.dex ?? 0) < ($1.dex ?? 0) }
+    var mine: [Card] = Store.load() // his cards, added on the iPad (AddView)
+    var adding = false
+    /// The cards to pick from: his, once at least two of them can play; the sample cards until then.
+    var cards: [Card] {
+        let his = mine.filter(\.playable)
+        return (his.count >= 2 ? his : Card.all.filter(\.playable)).sorted { ($0.dex ?? 0) < ($1.dex ?? 0) }
+    }
     @ObservationIgnored var told = Set<String>() // the longer explanations, said once each time the app opens
     @ObservationIgnored var popID = 0
     @ObservationIgnored var captionID = 0
@@ -79,6 +85,17 @@ struct Pop: Equatable {
             zoom[0] = demo == "zoom"
             if demo == "over" { winner = 0; step = .over }
             captions = [Caption(id: -2, text: Say.damage(lang, 30)), Caption(id: -1, text: Say.turnFirst(lang, name(0), Say.energyCard(lang, "Lightning")))]
+        }
+        if demo == "add" { adding = true }
+        if let ids = UserDefaults.standard.string(forKey: "add") { // the cloud Mac: add these cards as the add screen would
+            Task {
+                for id in ids.split(separator: ",") {
+                    if case .ok(let c) = await TCGdex.fetch(String(id)) {
+                        add(c)
+                        note("added \(c.id) \(c.name.en)/\(c.name.it) \(c.stage ?? "") \(c.hp) HP, " + c.attacks.map { "\($0.name.en) \($0.damage)\($0.mod ?? "") \($0.fx?.kind ?? "-")" }.joined(separator: "; "))
+                    } else { note("could not add \(id)") }
+                }
+            }
         }
         if UserDefaults.standard.bool(forKey: "auto") { Task { await autoplay() } }
         else if step == .pick { speak(Say.pick(lang)) }
@@ -108,6 +125,22 @@ struct Pop: Equatable {
     }
 
     func speak(_ text: String) { Task { await say(text) } }
+
+    func add(_ c: Card) {
+        mine.removeAll { $0.id == c.id }
+        mine.append(c)
+        Store.save(mine)
+    }
+
+    func remove(_ id: String) {
+        mine.removeAll { $0.id == id }
+        Store.save(mine)
+    }
+
+    func openAdding() {
+        voice.stop()
+        adding = true
+    }
 
     // MARK: Picking
 

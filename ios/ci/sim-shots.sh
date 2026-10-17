@@ -37,4 +37,9 @@ run over 4 -- -demo over -lang en -quiet NO
 run auto 2 2 2 3 4 6 -- -auto YES -fast YES -lang it -quiet NO
 run auto-en 25 -- -auto YES -fast YES -lang en -quiet NO
 run auto-2 25 -- -auto YES -fast YES -lang it -quiet NO
+# Adding cards (no camera on the simulator: the name search, and cards added the way the add screen does). Last, as
+# the cards it adds stay in the app's data for any later run.
+run add-search 10 -- -demo add -query fuecoco -lang it
+run added 15 -- -add sv01-038,sv01-036,me01-001,sv01-037 -demo pick -lang it -quiet NO
+run add-list 6 -- -demo add -lang en
 xcrun simctl terminate "$UDID" "$ID" || true

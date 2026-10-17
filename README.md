@@ -16,9 +16,14 @@ come in later levels.
 
 ## The cards
 
-`cards.txt` lists the cards, one TCGdex id per line. `python3 tools/cards.py` turns it into `ios/App/Data/cards.json`,
+His cards are added in the app. The + on the pick screen opens the camera, which reads the code printed at the bottom
+left of a card ("SVI 038/198"), or you can type a name. The card comes from TCGdex in Italian and English and is saved
+on the iPad.
+
+`cards.txt` lists the sample cards built into the app, one TCGdex id per line. `python3 tools/cards.py` turns it into `ios/App/Data/cards.json`,
 with the Italian and English names and attacks, and fetches any missing sprites. To find an id from a card's name and
-number: `python3 tools/cards.py find pikachu 25`. The card pictures are downloaded during each build and are not kept
+number: `python3 tools/cards.py find pikachu 25`. `python3 tools/cards.py sets` refreshes the table of set codes the camera
+uses. Attack effects are matched by the patterns in `ios/App/Data/effects.json`, shared by the app and the script. The card pictures are downloaded during each build and are not kept
 in this repo.
 
 ## Building

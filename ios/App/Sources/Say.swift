@@ -102,6 +102,34 @@ enum Say {
     static func again(_ l: Lang) -> String {
         t(l, "Un'altra partita? Togliete le Energie, scegliete le carte e toccatele qui.", "Another game? Take the Energy off, choose your cards and tap them here.")
     }
+    // The add screen, for a grown-up
+    static func hisCards(_ l: Lang) -> String { t(l, "Le sue carte", "His cards") }
+    static func addHint(_ l: Lang) -> String {
+        t(l, "Inquadra il codice in basso a sinistra della carta (per esempio SVI 038/198), oppure scrivi il nome.",
+          "Point the camera at the code at the bottom left of a card (like SVI 038/198), or type the name.")
+    }
+    static func typeName(_ l: Lang) -> String { t(l, "Nome del Pokémon", "Pokémon name") }
+    static func searchWord(_ l: Lang) -> String { t(l, "Cerca", "Search") }
+    static func looking(_ l: Lang) -> String { t(l, "Cerco…", "Looking…") }
+    static func noneFound(_ l: Lang) -> String { t(l, "Non trovo niente. Prova un altro nome.", "Nothing found. Try another name.") }
+    static func tapHis(_ l: Lang) -> String { t(l, "Tocca la sua carta.", "Tap his card.") }
+    static func cantRead(_ l: Lang) -> String {
+        t(l, "Non riesco a leggerla: avvicina il codice in basso a sinistra, o scrivi il nome.", "Can't read it: bring the code at the bottom left closer, or type the name.")
+    }
+    static func adding(_ l: Lang) -> String { t(l, "Aggiungo…", "Adding…") }
+    static func added(_ l: Lang, _ n: String) -> String { t(l, "\(n) aggiunto! Avanti la prossima.", "\(n) added! Next card.") }
+    static func addedForLater(_ l: Lang, _ n: String) -> String {
+        t(l, "\(n) aggiunto. È un'evoluzione: entra in gioco in un livello più avanti.", "\(n) added. It's an Evolution card: it joins the game in a later level.")
+    }
+    static func notPokemon(_ l: Lang, _ n: String) -> String {
+        t(l, "\(n) non è un Pokémon: per ora si usano solo le carte Pokémon.", "\(n) isn't a Pokémon: only Pokémon cards for now.")
+    }
+    static func offline(_ l: Lang) -> String { t(l, "Per aggiungere le carte serve internet.", "Adding cards needs the internet.") }
+    static func count(_ l: Lang, _ n: Int) -> String {
+        n == 0 ? t(l, "Nessuna ancora: finché non ne aggiungi due, si gioca con le carte di prova.", "None yet: until you add two, the sample cards are used.")
+            : t(l, "\(n) carte aggiunte", "\(n) cards added")
+    }
+
     static func card(_ l: Lang, _ c: Card) -> String {
         let w = c.weak.map { t(l, " Debolezza: \(Kind.name($0, l)).", " Weak to \(Kind.name($0, l)).") } ?? ""
         return t(l, "\(c.name(l)). \(c.hp) punti salute. Tipo \(Kind.name(c.type, l)).", "\(c.name(l)). \(c.hp) HP. \(Kind.name(c.type, l)) type.") + w

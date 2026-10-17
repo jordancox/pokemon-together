@@ -1,0 +1,20 @@
+[
+ {"re": "Flip a coin\\. If heads, this attack does (\\d+) more damage\\.", "kind": "coinBonus", "n": "$1"},
+ {"re": "Flip a coin\\. If tails, this attack does nothing\\.", "kind": "coinNothing"},
+ {"re": "Flip (\\d+) coins\\. This attack does (\\d+) damage for each heads\\.", "kind": "coins", "n": "$1", "each": "$2"},
+ {"re": "Flip a coin until you get tails\\. This attack does (\\d+) damage for each heads\\.", "kind": "untilTails", "each": "$1"},
+ {"re": "Heal (\\d+) damage from this Pokémon\\.", "kind": "heal", "n": "$1"},
+ {"re": "This Pokémon also does (\\d+) damage to itself\\.", "kind": "self", "n": "$1"},
+ {"re": "Search your deck for a Basic (?:\\{\\w\\} )?Energy card and attach it to this Pokémon\\. Then, shuffle your deck\\.", "kind": "attach", "n": "1"},
+ {"re": "Search your deck for up to (\\d+) Basic (?:\\{\\w\\} )?Energy cards and attach them to this Pokémon\\. Then, shuffle your deck\\.", "kind": "attach", "n": "$1"},
+ {"re": "Attach a Basic (?:\\{\\w\\} )?Energy card from your discard pile to this Pokémon\\.", "kind": "attach", "n": "1"},
+ {"re": "Discard (an|a|\\d+|all) (?:\\{\\w\\} )?Energy (?:card )?from this Pokémon\\.", "kind": "discard", "n": "$1"},
+ {"re": "During your next turn, this Pokémon can't attack\\.", "kind": "lockSelf"},
+ {"re": "During your opponent's next turn, the Defending Pokémon can't attack\\.", "kind": "lockFoe"},
+ {"re": "Flip a coin\\. If heads, during your opponent's next turn, prevent all damage (?:done to this Pokémon by attacks|from and effects of attacks done to this Pokémon)\\.", "kind": "protectCoin"},
+ {"re": "During your opponent's next turn, this Pokémon takes (\\d+) less damage from attacks(?: \\(after applying Weakness and Resistance\\))?\\.", "kind": "reduce", "n": "$1"},
+ {"re": "This attack does (\\d+) more damage for each damage counter on your opponent's Active Pokémon\\.", "kind": "plusFoeCounters", "each": "$1"},
+ {"re": "This attack does (\\d+) more damage for each damage counter on this Pokémon\\.", "kind": "plusOwnCounters", "each": "$1"},
+ {"re": "This attack does (\\d+) more damage for each Energy attached to this Pokémon\\.", "kind": "plusOwnEnergy", "each": "$1"},
+ {"re": "This attack's damage isn't affected by Weakness or Resistance.*", "kind": "noWeakness"}
+]

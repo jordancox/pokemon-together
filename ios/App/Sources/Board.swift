@@ -26,6 +26,7 @@ struct Board: View {
         .persistentSystemOverlays(.hidden)
         .defersSystemGestures(on: .all)
         .onAppear { game.boot() }
+        .fullScreenCover(isPresented: Binding(get: { game.adding }, set: { game.adding = $0 })) { AddView(game: game) }
     }
 }
 

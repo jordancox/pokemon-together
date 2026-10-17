@@ -28,6 +28,13 @@ struct PickView: View {
                         Button { game.pick(side, c) } label: { PickCell(card: c, lang: game.lang, on: chosen?.id == c.id) }
                             .buttonStyle(.plain)
                     }
+                    // Add his cards (the camera, or a name)
+                    Button { game.openAdding() } label: {
+                        Image(systemName: "plus").font(.system(size: 46, weight: .bold)).foregroundStyle(.black.opacity(0.6))
+                            .frame(width: 122, height: 124)
+                            .background(RoundedRectangle(cornerRadius: 18).fill(.white.opacity(0.5)))
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.vertical, 18)
             }

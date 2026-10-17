@@ -108,7 +108,8 @@ enum Art {
     static func card(_ c: Card, _ l: Lang) -> UIImage? {
         guard let file = c.img[l.rawValue] ?? c.img["en"] ?? c.img["it"] else { return nil }
         if let i = cards[file] { return i }
-        let i = UIImage(contentsOfFile: root.appendingPathComponent("Cards/" + file).path)
+        let i = UIImage(contentsOfFile: Store.docs.appendingPathComponent("Cards/" + file).path) // added on the iPad
+            ?? UIImage(contentsOfFile: root.appendingPathComponent("Cards/" + file).path)
         cards[file] = i
         return i
     }
@@ -117,9 +118,12 @@ enum Art {
     static func sprite(_ dex: Int?) -> UIImage? {
         guard let dex else { return nil }
         if let i = sprites[dex] { return i }
-        let gif = root.appendingPathComponent("Sprites/\(dex).gif"), png = root.appendingPathComponent("Sprites/\(dex).png")
+        let fm = FileManager.default
+        let places = [Store.docs.appendingPathComponent("Sprites"), root.appendingPathComponent("Sprites")] // added on the iPad, or built in
+        let gif = places.map { $0.appendingPathComponent("\(dex).gif") }.first { fm.fileExists(atPath: $0.path) }
+        let png = places.map { $0.appendingPathComponent("\(dex).png") }.first { fm.fileExists(atPath: $0.path) }
         var image: UIImage?
-        if FileManager.default.fileExists(atPath: gif.path), let src = CGImageSourceCreateWithURL(gif as CFURL, nil) {
+        if let gif, let src = CGImageSourceCreateWithURL(gif as CFURL, nil) {
             var frames: [UIImage] = [], total = 0.0
             for i in 0..<CGImageSourceGetCount(src) {
                 guard let cg = CGImageSourceCreateImageAtIndex(src, i, nil) else { continue }
@@ -131,7 +135,7 @@ enum Art {
             }
             image = frames.count > 1 ? UIImage.animatedImage(with: frames, duration: total) : frames.first
         } else {
-            image = UIImage(contentsOfFile: png.path)
+            image = png.flatMap { UIImage(contentsOfFile: $0.path) }
         }
         sprites[dex] = image
         return image

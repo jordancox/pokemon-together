@@ -46,6 +46,7 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: "Per leggere il codice sulle carte. / To read the code on his cards."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.jordancox.insieme
