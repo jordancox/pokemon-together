@@ -289,7 +289,7 @@ struct AddView: View {
             HStack {
                 Text(Say.hisCards(l)).font(.system(size: 34, weight: .heavy, design: .rounded))
                 Spacer()
-                Button { game.adding = false } label: {
+                Button { game.closeAdding() } label: {
                     Text(Say.doneWord(l)).font(.system(size: 22, weight: .bold, design: .rounded)).padding(.horizontal, 12)
                 }
                 .buttonStyle(.borderedProminent)

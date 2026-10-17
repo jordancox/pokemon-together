@@ -15,11 +15,16 @@ teaching happens in the app, by voice, at the moment it matters, never in a chat
 ## How it works
 
 - iPad only, portrait, lying flat. Side 0 is the bottom half, side 1 the top (turned 180°). Each half is designed at
-  834×575 (half an 11-inch iPad) and scaled (`Fit` in `Board.swift`). The middle strip has the Poké Ball (start / say
-  it again / play again; hold 1.2 s to stop a game), the 🇮🇹 🇬🇧 switch and the voice switch.
+  834×575 (half an 11-inch iPad) and scaled (`Fit` in `Board.swift`). The middle strip has the Poké Ball (choose the
+  Pokémon / start / say it again / play again; hold 1.2 s to stop a game), the 🇮🇹 🇬🇧 switch and the voice switch.
+- **The app chooses the Pokémon** (Jordan, 17 Oct: "we have no idea what cards to choose… we do not know any rules
+  here"): the first Poké Ball tap picks a fair pair from the cards that can play (`choose`: about the same HP), and the
+  voice says to find the card shown on your half in the pile. Tapping a Pokémon still chooses it yourself. Nothing
+  may assume they know a rule or a card part: the voice says what an Energy card looks like and its colour
+  (`Say.energyLook`), where things go ("under Pikachu's card"), and explains HP at the first damage.
 - `Game.swift` has the rules (level 1, see README) and the whole turn flow. The ENERGY button means "I put an Energy
   card on it", and the voice names the type to put on (`nextEnergy`). The first-time explanations are the
-  `told` keys (hp, energy, cost, attack, coin, weak, count), once each time the app opens. Everything said goes through `Game.say`:
+  `told` keys (energy, cost, attack, coin, weak, count), once each time the app opens. Everything said goes through `Game.say`:
   spoken by `Voice` (AVSpeechSynthesizer, the best Italian or English voice on the iPad), or, with the voice off
   (Jordan, 17 Oct: "if I am playing with him and want to just read the instructions myself"), shown as the latest
   line at the top of each half. `Say.swift` has every line, Italian first.

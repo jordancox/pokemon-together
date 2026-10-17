@@ -53,7 +53,8 @@ struct Half: View {
     }
 }
 
-/// The strip across the middle: the Poké Ball (start, say it again, play again; hold it to stop a game), the languages
+/// The strip across the middle: the Poké Ball (choose the Pokémon, start, say it again, play again; hold it to stop a
+/// game), the languages
 /// and the voice switch.
 struct Seam: View {
     let game: Game
@@ -74,7 +75,7 @@ struct Seam: View {
             .padding(.horizontal, 24)
             Pokeball(top: Kind.color(game.sides[1].card?.type), bottom: Kind.color(game.sides[0].card?.type))
                 .frame(width: 96, height: 96)
-                .modifier(Pulse(on: (game.step == .pick && game.sides.allSatisfy { $0.card != nil }) || game.step == .over))
+                .modifier(Pulse(on: game.step == .pick || game.step == .over))
                 .contentShape(Circle())
                 .onTapGesture { game.ball() }
                 .onLongPressGesture(minimumDuration: 1.2) { game.quit() }

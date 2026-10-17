@@ -61,6 +61,8 @@ struct Pop: Equatable {
         let his = mine.filter(\.playable)
         return (his.count >= 2 ? his : Card.all.filter(\.playable)).sorted { ($0.dex ?? 0) < ($1.dex ?? 0) }
     }
+    /// His cards are in the app (two or more that can play), so the voice can send them to find the cards in the pile.
+    var own: Bool { mine.filter(\.playable).count >= 2 }
     @ObservationIgnored var told = Set<String>() // the longer explanations, said once each time the app opens
     @ObservationIgnored var popID = 0
     @ObservationIgnored var captionID = 0
@@ -84,7 +86,7 @@ struct Pop: Equatable {
             step = .battle
             zoom[0] = demo == "zoom"
             if demo == "over" { winner = 0; step = .over }
-            captions = [Caption(id: -2, text: Say.damage(lang, 30)), Caption(id: -1, text: Say.turnFirst(lang, name(0), Say.energyCard(lang, "Lightning")))]
+            captions = [Caption(id: -2, text: Say.damage(lang, 30)), Caption(id: -1, text: Say.turnFirst(lang, name(0), "Lightning"))]
         }
         if demo == "add" { adding = true }
         if let ids = UserDefaults.standard.string(forKey: "add") { // the cloud Mac: add these cards as the add screen would
@@ -98,14 +100,14 @@ struct Pop: Equatable {
             }
         }
         if UserDefaults.standard.bool(forKey: "auto") { Task { await autoplay() } }
-        else if step == .pick { speak(Say.pick(lang)) }
+        else if step == .pick { speak(Say.pick(lang, own)) }
     }
 
     func setLang(_ l: Lang) {
         lang = l
         voice.lang = l
         UserDefaults.standard.set(l.rawValue, forKey: "lang")
-        speak(Say.language(l) + (step == .pick ? " " + Say.pick(l) : ""))
+        speak(Say.language(l) + (step == .pick ? " " + Say.pick(l, own) : ""))
     }
 
     func setQuiet(_ q: Bool) {
@@ -142,21 +144,42 @@ struct Pop: Equatable {
         adding = true
     }
 
+    func closeAdding() {
+        adding = false
+        if step == .pick { speak(Say.pick(lang, own)) }
+    }
+
     // MARK: Picking
 
+    /// Tapping a Pokémon on the pick screen: choosing it yourself instead.
     func pick(_ s: Int, _ c: Card) {
         guard step == .pick else { return }
         sides[s].card = c
         Sound.play("pop")
-        var line = told.insert("hp").inserted ? Say.pickedTeach(lang, c.name(lang), c.hp) : Say.picked(lang, c.name(lang), c.hp)
-        if sides.allSatisfy({ $0.card != nil }) { line += " " + Say.ready(lang) }
-        speak(line)
+        speak(sides.allSatisfy { $0.card != nil } ? Say.chosen(lang, name(0), name(1), own) + " " + Say.ready(lang) : Say.picked(lang, c.name(lang)))
     }
 
-    /// The Poké Ball in the middle: start, say it again, or play again.
+    /// The Poké Ball before both have a Pokémon: the app chooses for whoever hasn't. The second has about the same HP as
+    /// the first, so it's a fair fight.
+    func choose() {
+        guard step == .pick, !busy, cards.count > 1 else { return }
+        for s in [0, 1].shuffled() where sides[s].card == nil {
+            let other = sides[1 - s].card
+            var pool = cards.filter { $0.name.en != other?.name.en }
+            if pool.isEmpty { pool = cards.filter { $0.id != other?.id } }
+            guard let o = other else { sides[s].card = pool.randomElement(); continue }
+            let near = pool.filter { abs($0.hp - o.hp) <= 20 }
+            sides[s].card = (near.isEmpty ? Array(pool.sorted { abs($0.hp - o.hp) < abs($1.hp - o.hp) }.prefix(3)) : near).randomElement()
+        }
+        Sound.play("pop")
+        note("chose \(name(0)) \(sides[0].card?.hp ?? 0) HP against \(name(1)) \(sides[1].card?.hp ?? 0) HP")
+        speak(Say.chosen(lang, name(0), name(1), own) + " " + Say.ready(lang))
+    }
+
+    /// The Poké Ball in the middle: choose the Pokémon, start, say it again, or play again.
     func ball() {
         switch step {
-        case .pick: Task { await go() }
+        case .pick: if sides.allSatisfy({ $0.card != nil }) { Task { await go() } } else { choose() }
         case .over: again()
         case .coin, .battle: if !quiet { speak(voice.last) }
         }
@@ -171,17 +194,14 @@ struct Pop: Equatable {
     func again() {
         winner = nil
         zoom = [false, false]
-        sides = sides.map { Side(card: $0.card) }
+        sides = [Side(), Side()]
         step = .pick
         Sound.play("pop")
         speak(Say.again(lang))
     }
 
     func go() async {
-        guard step == .pick, !busy, let a = sides[0].card, let b = sides[1].card else {
-            if step == .pick { speak(Say.pick(lang)) }
-            return
-        }
+        guard step == .pick, !busy, let a = sides[0].card, let b = sides[1].card else { return }
         busy = true
         sides = [Side(card: a), Side(card: b)]
         turns = 0
@@ -213,7 +233,7 @@ struct Pop: Equatable {
             await pause(1.6)
             if banner == s { withAnimation { banner = nil } }
         }
-        let e = Say.energyCard(lang, nextEnergy(s))
+        let e = nextEnergy(s)
         if told.insert("energy").inserted { await say(Say.turnFirst(lang, name(s), e)) }
         else { await say(Say.turn(lang, name(s), e)) }
     }
@@ -461,10 +481,7 @@ struct Pop: Equatable {
     func autoplay() async {
         guard cards.count > 1 else { return }
         await pause(1)
-        let pool = cards.shuffled()
-        pick(0, pool[0])
-        await pause(0.5)
-        pick(1, pool[1])
+        choose()
         await pause(0.5)
         await go()
         var moves = 0
