@@ -1,0 +1,17 @@
+# His cards. One per line: the TCGdex id (set-number), and anything after # is a note.
+# After editing, run: python3 tools/cards.py   (then commit and push: the cloud Mac builds the app)
+# Find an id from the name and the number printed on the card: python3 tools/cards.py find pikachu 25
+#
+# Starter cards from Scarlet & Violet 151 (17 Oct 2026), until photos of his own cards come in.
+sv03.5-001  # Bulbasaur
+sv03.5-004  # Charmander
+sv03.5-007  # Squirtle
+sv03.5-025  # Pikachu
+sv03.5-039  # Jigglypuff
+sv03.5-054  # Psyduck
+sv03.5-066  # Machop
+sv03.5-074  # Geodude
+sv03.5-092  # Gastly
+sv03.5-100  # Voltorb
+sv03.5-104  # Cubone
+sv03.5-133  # Eevee

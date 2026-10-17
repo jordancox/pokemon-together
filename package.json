@@ -1,1 +1,0 @@
-{"name":"insieme-pokemon","version":"1.0.0","private":true,"type":"module","scripts":{"build":"node build.mjs","check":"node --check public/app.js && node --check public/content.js && node --check public/sw.js"}}

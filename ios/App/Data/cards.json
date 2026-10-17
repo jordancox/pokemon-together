@@ -1,0 +1,594 @@
+[
+ {
+  "id": "sv03.5-001",
+  "dex": 1,
+  "stage": "Basic",
+  "hp": 70,
+  "type": "Grass",
+  "weak": "Fire",
+  "resist": null,
+  "resistBy": null,
+  "retreat": 2,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Bulbasaur",
+   "it": "Bulbasaur"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Leech Seed",
+     "it": "Parassiseme"
+    },
+    "cost": [
+     "Grass",
+     "Colorless"
+    ],
+    "damage": 20,
+    "mod": null,
+    "fx": {
+     "kind": "heal",
+     "n": 20
+    }
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-001.webp",
+   "it": "it/sv03_5-001.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/001/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/001/high.webp"
+  }
+ },
+ {
+  "id": "sv03.5-004",
+  "dex": 4,
+  "stage": "Basic",
+  "hp": 70,
+  "type": "Fire",
+  "weak": "Water",
+  "resist": null,
+  "resistBy": null,
+  "retreat": 1,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Charmander",
+   "it": "Charmander"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Blazing Destruction",
+     "it": "Raso al Fuoco"
+    },
+    "cost": [
+     "Fire"
+    ],
+    "damage": 0,
+    "mod": null,
+    "fx": {
+     "kind": "skip"
+    }
+   },
+   {
+    "name": {
+     "en": "Steady Firebreathing",
+     "it": "Soffiofuoco Mirato"
+    },
+    "cost": [
+     "Fire",
+     "Fire"
+    ],
+    "damage": 30,
+    "mod": null,
+    "fx": null
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-004.webp",
+   "it": "it/sv03_5-004.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/004/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/004/high.webp"
+  }
+ },
+ {
+  "id": "sv03.5-007",
+  "dex": 7,
+  "stage": "Basic",
+  "hp": 60,
+  "type": "Water",
+  "weak": "Lightning",
+  "resist": null,
+  "resistBy": null,
+  "retreat": 1,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Squirtle",
+   "it": "Squirtle"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Withdraw",
+     "it": "Ritirata"
+    },
+    "cost": [
+     "Water"
+    ],
+    "damage": 0,
+    "mod": null,
+    "fx": {
+     "kind": "protectCoin"
+    }
+   },
+   {
+    "name": {
+     "en": "Skull Bash",
+     "it": "Capocciata"
+    },
+    "cost": [
+     "Water",
+     "Water"
+    ],
+    "damage": 20,
+    "mod": null,
+    "fx": null
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-007.webp",
+   "it": "it/sv03_5-007.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/007/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/007/high.webp"
+  }
+ },
+ {
+  "id": "sv03.5-025",
+  "dex": 25,
+  "stage": "Basic",
+  "hp": 60,
+  "type": "Lightning",
+  "weak": "Fighting",
+  "resist": null,
+  "resistBy": null,
+  "retreat": 1,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Pikachu",
+   "it": "Pikachu"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Charge",
+     "it": "Sottocarica"
+    },
+    "cost": [
+     "Lightning"
+    ],
+    "damage": 0,
+    "mod": null,
+    "fx": {
+     "kind": "attach",
+     "n": 1
+    }
+   },
+   {
+    "name": {
+     "en": "Pika Punch",
+     "it": "Pika Pugno"
+    },
+    "cost": [
+     "Lightning",
+     "Lightning",
+     "Colorless"
+    ],
+    "damage": 50,
+    "mod": null,
+    "fx": null
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-025.webp",
+   "it": "it/sv03_5-025.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/025/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/025/high.webp"
+  }
+ },
+ {
+  "id": "sv03.5-039",
+  "dex": 39,
+  "stage": "Basic",
+  "hp": 70,
+  "type": "Colorless",
+  "weak": "Fighting",
+  "resist": null,
+  "resistBy": null,
+  "retreat": 1,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Jigglypuff",
+   "it": "Jigglypuff"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Lead",
+     "it": "Guidare"
+    },
+    "cost": [
+     "Colorless"
+    ],
+    "damage": 0,
+    "mod": null,
+    "fx": {
+     "kind": "skip"
+    }
+   },
+   {
+    "name": {
+     "en": "Stompy Stomp",
+     "it": "Pesto Ripesto"
+    },
+    "cost": [
+     "Colorless",
+     "Colorless"
+    ],
+    "damage": 20,
+    "mod": "×",
+    "fx": {
+     "kind": "coins",
+     "n": 2,
+     "each": 20
+    }
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-039.webp",
+   "it": "it/sv03_5-039.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/039/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/039/high.webp"
+  }
+ },
+ {
+  "id": "sv03.5-054",
+  "dex": 54,
+  "stage": "Basic",
+  "hp": 70,
+  "type": "Water",
+  "weak": "Lightning",
+  "resist": null,
+  "resistBy": null,
+  "retreat": 1,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Psyduck",
+   "it": "Psyduck"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Overthink",
+     "it": "Rimuginare"
+    },
+    "cost": [
+     "Colorless"
+    ],
+    "damage": 0,
+    "mod": null,
+    "fx": {
+     "kind": "skip"
+    }
+   },
+   {
+    "name": {
+     "en": "Water Gun",
+     "it": "Pistolacqua"
+    },
+    "cost": [
+     "Water"
+    ],
+    "damage": 10,
+    "mod": null,
+    "fx": null
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-054.webp",
+   "it": "it/sv03_5-054.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/054/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/054/high.webp"
+  }
+ },
+ {
+  "id": "sv03.5-066",
+  "dex": 66,
+  "stage": "Basic",
+  "hp": 70,
+  "type": "Fighting",
+  "weak": "Psychic",
+  "resist": null,
+  "resistBy": null,
+  "retreat": 2,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Machop",
+   "it": "Machop"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Mountain Mashing",
+     "it": "Percuotimonte"
+    },
+    "cost": [
+     "Fighting"
+    ],
+    "damage": 0,
+    "mod": null,
+    "fx": {
+     "kind": "skip"
+    }
+   },
+   {
+    "name": {
+     "en": "Punch",
+     "it": "Pugno"
+    },
+    "cost": [
+     "Fighting",
+     "Fighting"
+    ],
+    "damage": 30,
+    "mod": null,
+    "fx": null
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-066.webp",
+   "it": "it/sv03_5-066.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/066/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/066/high.webp"
+  }
+ },
+ {
+  "id": "sv03.5-074",
+  "dex": 74,
+  "stage": "Basic",
+  "hp": 80,
+  "type": "Fighting",
+  "weak": "Grass",
+  "resist": null,
+  "resistBy": null,
+  "retreat": 2,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Geodude",
+   "it": "Geodude"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Stiffen",
+     "it": "Indurimento"
+    },
+    "cost": [
+     "Fighting"
+    ],
+    "damage": 0,
+    "mod": null,
+    "fx": {
+     "kind": "reduce",
+     "n": 30
+    }
+   },
+   {
+    "name": {
+     "en": "Knuckle Punch",
+     "it": "Noccapugno"
+    },
+    "cost": [
+     "Fighting",
+     "Colorless"
+    ],
+    "damage": 20,
+    "mod": null,
+    "fx": null
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-074.webp",
+   "it": "it/sv03_5-074.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/074/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/074/high.webp"
+  }
+ },
+ {
+  "id": "sv03.5-092",
+  "dex": 92,
+  "stage": "Basic",
+  "hp": 50,
+  "type": "Psychic",
+  "weak": "Darkness",
+  "resist": "Fighting",
+  "resistBy": 30,
+  "retreat": 1,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Gastly",
+   "it": "Gastly"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Suffocating Gas",
+     "it": "Gas Soffocante"
+    },
+    "cost": [
+     "Psychic"
+    ],
+    "damage": 20,
+    "mod": null,
+    "fx": null
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-092.webp",
+   "it": "it/sv03_5-092.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/092/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/092/high.webp"
+  }
+ },
+ {
+  "id": "sv03.5-100",
+  "dex": 100,
+  "stage": "Basic",
+  "hp": 60,
+  "type": "Lightning",
+  "weak": "Fighting",
+  "resist": null,
+  "resistBy": null,
+  "retreat": 1,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Voltorb",
+   "it": "Voltorb"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Tumbling Attack",
+     "it": "Attacco Capriola"
+    },
+    "cost": [
+     "Lightning"
+    ],
+    "damage": 10,
+    "mod": "+",
+    "fx": {
+     "kind": "coinBonus",
+     "n": 20
+    }
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-100.webp",
+   "it": "it/sv03_5-100.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/100/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/100/high.webp"
+  }
+ },
+ {
+  "id": "sv03.5-104",
+  "dex": 104,
+  "stage": "Basic",
+  "hp": 70,
+  "type": "Fighting",
+  "weak": "Grass",
+  "resist": null,
+  "resistBy": null,
+  "retreat": 1,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Cubone",
+   "it": "Cubone"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Hit Twice",
+     "it": "Doppia Botta"
+    },
+    "cost": [
+     "Fighting"
+    ],
+    "damage": 10,
+    "mod": "×",
+    "fx": {
+     "kind": "coins",
+     "n": 2,
+     "each": 10
+    }
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-104.webp",
+   "it": "it/sv03_5-104.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/104/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/104/high.webp"
+  }
+ },
+ {
+  "id": "sv03.5-133",
+  "dex": 133,
+  "stage": "Basic",
+  "hp": 70,
+  "type": "Colorless",
+  "weak": "Fighting",
+  "resist": null,
+  "resistBy": null,
+  "retreat": 1,
+  "evolvesFrom": null,
+  "name": {
+   "en": "Eevee",
+   "it": "Eevee"
+  },
+  "attacks": [
+   {
+    "name": {
+     "en": "Colorful Friends",
+     "it": "Amici Colorati"
+    },
+    "cost": [
+     "Colorless"
+    ],
+    "damage": 0,
+    "mod": null,
+    "fx": {
+     "kind": "skip"
+    }
+   },
+   {
+    "name": {
+     "en": "Skip",
+     "it": "Saltello"
+    },
+    "cost": [
+     "Colorless"
+    ],
+    "damage": 10,
+    "mod": null,
+    "fx": null
+   }
+  ],
+  "img": {
+   "en": "en/sv03_5-133.webp",
+   "it": "it/sv03_5-133.webp"
+  },
+  "src": {
+   "en": "https://assets.tcgdex.net/en/sv/sv03.5/133/high.webp",
+   "it": "https://assets.tcgdex.net/it/sv/sv03.5/133/high.webp"
+  }
+ }
+]

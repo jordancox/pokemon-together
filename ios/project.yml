@@ -1,0 +1,56 @@
+# Insieme for iPad. XcodeGen turns this into Insieme.xcodeproj on the cloud Mac (.github/workflows/ios.yml); nobody
+# edits the Xcode project by hand. Set up like train-widget/ios/project.yml (the ios-testflight skill).
+name: Insieme
+options:
+  bundleIdPrefix: org.jordancox
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+targets:
+  Insieme:
+    type: application
+    platform: iOS
+    scheme: {}
+    sources:
+      - path: App/Sources
+      - path: App/Data # cards.json, from tools/cards.py
+        type: folder
+        buildPhase: resources
+      - path: App/Sprites # from PokeAPI, by tools/cards.py
+        type: folder
+        buildPhase: resources
+      - path: App/Sounds # from tools/sounds.py
+        type: folder
+        buildPhase: resources
+      - path: build/Cards # the card pictures: tools/cards.py art downloads them on the cloud Mac, never committed
+        type: folder
+        buildPhase: resources
+      - path: Assets.xcassets
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleDisplayName: Insieme
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        # It lies flat between two players, so it never turns: upright for the player at the bottom.
+        UIRequiresFullScreen: true
+        UIStatusBarHidden: true
+        UIViewControllerBasedStatusBarAppearance: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.jordancox.insieme
+        PRODUCT_NAME: Insieme
+        # iPad only, set on the target (XcodeGen's iOS preset puts "1,2" here, over any project-wide value)
+        TARGETED_DEVICE_FAMILY: "2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_USER_SCRIPT_SANDBOXING: NO

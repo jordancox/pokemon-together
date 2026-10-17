@@ -1,4 +1,6 @@
-node_modules/
-dist/
-test-results/
-*.tar.gz
+.DS_Store
+# iOS: XcodeGen makes these on the cloud Mac, and the card pictures are downloaded there (tools/cards.py art)
+ios/*.xcodeproj/
+ios/Generated/
+ios/build/
+__pycache__/
