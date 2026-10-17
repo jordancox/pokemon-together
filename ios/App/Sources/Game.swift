@@ -101,6 +101,41 @@ struct Pop: Equatable {
         }
         if UserDefaults.standard.bool(forKey: "auto") { Task { await autoplay() } }
         else if step == .pick { speak(Say.pick(lang, own)) }
+        warm()
+        if UserDefaults.standard.bool(forKey: "voicetest") { Task { await voiceTest() } }
+    }
+
+    /// Kokoro makes ahead of time the sentences every game says (when the app opens, the language changes or the voice
+    /// comes back on). Each Pokémon's own are made when it's chosen (`warm(_:)`).
+    func warm() {
+        let l = lang
+        var lines = [Say.pick(l, own), Say.ready(l), Say.flip(l), Say.firstTurnRule(l), Say.canAttack(l), Say.notEnough(l),
+                     Say.oneEnergy(l), Say.energyFirst(l), Say.heads(l), Say.tails(l), Say.nothing(l), Say.coinTeach(l), Say.again(l)]
+        lines += Kokoro.sentences(Say.chosen(l, "A", "B", own)).dropFirst() // the part after "A against B!"
+        lines += ["Grass", "Fire", "Water", "Lightning", "Psychic", "Fighting", "Darkness", "Metal", "Colorless"]
+            .flatMap { Kokoro.sentences(Say.turn(l, "A", $0)).dropFirst() } // "Put on a Lightning Energy card: the yellow one."
+        lines += stride(from: 10, through: 200, by: 10).map { Say.damage(l, $0) }
+        voice.prepare(lines, .later)
+    }
+
+    func warm(_ c: Card) {
+        let l = lang, n = c.name(l)
+        var lines = [Say.picked(l, n), Say.starts(l, n), Say.ko(l, n), Say.wins(l, n), Say.wait(l, n)]
+        lines += Set(c.moves.flatMap(\.cost) + [c.type]).sorted().map { Say.turn(l, n, $0) }
+        lines += c.moves.map { Say.uses(l, n, $0.name(l)) }
+        lines += stride(from: c.hp - 10, to: 0, by: -10).map { Say.left(l, n, $0) }
+        voice.prepare(lines, .soon)
+    }
+
+    /// -voicetest (the cloud Mac): how long Kokoro takes to make some lines, in the log.
+    func voiceTest() async {
+        note("voicetest: kokoro \(Kokoro.shared.on ? "on" : "off")")
+        for l in [Lang.it, .en] {
+            setLang(l)
+            await say(Say.chosen(l, "Pikachu", "Charmander", true))
+            await say(Say.turnFirst(l, "Pikachu", "Lightning"))
+        }
+        note("voicetest: done")
     }
 
     func setLang(_ l: Lang) {
@@ -108,6 +143,8 @@ struct Pop: Equatable {
         voice.lang = l
         UserDefaults.standard.set(l.rawValue, forKey: "lang")
         speak(Say.language(l) + (step == .pick ? " " + Say.pick(l, own) : ""))
+        warm()
+        for c in sides.compactMap(\.card) { warm(c) }
     }
 
     func setQuiet(_ q: Bool) {
@@ -115,7 +152,11 @@ struct Pop: Equatable {
         voice.quiet = q
         UserDefaults.standard.set(q, forKey: "quiet")
         Sound.play("pop")
-        if !q { speak(Say.voiceOn(lang)) }
+        if !q {
+            speak(Say.voiceOn(lang))
+            warm()
+            for c in sides.compactMap(\.card) { warm(c) }
+        }
     }
 
     /// Everything the game says goes through here: spoken, or shown when the voice is off.
@@ -156,6 +197,7 @@ struct Pop: Equatable {
         guard step == .pick else { return }
         sides[s].card = c
         Sound.play("pop")
+        warm(c)
         speak(sides.allSatisfy { $0.card != nil } ? Say.chosen(lang, name(0), name(1), own) + " " + Say.ready(lang) : Say.picked(lang, c.name(lang)))
     }
 
@@ -172,6 +214,7 @@ struct Pop: Equatable {
             sides[s].card = (near.isEmpty ? Array(pool.sorted { abs($0.hp - o.hp) < abs($1.hp - o.hp) }.prefix(3)) : near).randomElement()
         }
         Sound.play("pop")
+        for c in sides.compactMap(\.card) { warm(c) }
         note("chose \(name(0)) \(sides[0].card?.hp ?? 0) HP against \(name(1)) \(sides[1].card?.hp ?? 0) HP")
         speak(Say.chosen(lang, name(0), name(1), own) + " " + Say.ready(lang))
     }

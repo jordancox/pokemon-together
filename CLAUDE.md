@@ -25,9 +25,18 @@ teaching happens in the app, by voice, at the moment it matters, never in a chat
 - `Game.swift` has the rules (level 1, see README) and the whole turn flow. The ENERGY button means "I put an Energy
   card on it", and the voice names the type to put on (`nextEnergy`). The first-time explanations are the
   `told` keys (energy, cost, attack, coin, weak, count), once each time the app opens. Everything said goes through `Game.say`:
-  spoken by `Voice` (AVSpeechSynthesizer, the best Italian or English voice on the iPad), or, with the voice off
+  spoken by `Voice`, or, with the voice off
   (Jordan, 17 Oct: "if I am playing with him and want to just read the instructions myself"), shown as the latest
   line at the top of each half. `Say.swift` has every line, Italian first.
+- **The voice is Kokoro**, run on the iPad (Jordan, 17 Oct, after hearing samples: "it does sound a lot better than
+  the ipad's premium voices"; his OK to add it). `Kokoro.swift`: sherpa-onnx (Swift package) runs Kokoro v1.0, put
+  in the app by `ios/ci/kokoro.sh` (never committed). Voices: Sara (35) for Italian, Emma (21, British) for English.
+  Making a sentence takes about as long as saying it (on the VM; his 2018 iPad is untested), so every sentence is kept
+  in Library/Caches/Voice once made, and the game asks ahead: `Game.warm()` for the lines every game says,
+  `warm(card)` when a Pokémon is chosen. A line is played sentence by sentence, the next made while one plays. If
+  Kokoro can't load, the iPad's own voice (AVSpeechSynthesizer) speaks. Names are respelled for both voices from
+  `Data/names.json` ("Pikaciù", "Peekachoo"): add a name there when Jordan hears one said wrong, checking it with
+  espeak-ng first.
 - Cards: `cards.txt` → `tools/cards.py` → `ios/App/Data/cards.json` (TCGdex, IT and EN). Effects are read from the
   English text by the `EFFECTS` patterns. An effect that isn't matched is `skip`: the attack does only its damage, and
   an attack with no damage is hidden. Check the "effect not played" list it prints when adding cards. Level 1 only

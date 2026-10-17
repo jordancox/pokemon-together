@@ -18,7 +18,7 @@ concurrency:
 jobs:
   ios:
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
       HOMEBREW_NO_INSTALL_CLEANUP: 1
@@ -30,6 +30,8 @@ jobs:
           brew install xcodegen >/dev/null
       - name: Card pictures, from TCGdex
         run: python3 tools/cards.py art
+      - name: Kokoro voice model, from sherpa-onnx
+        run: ios/ci/kokoro.sh
       - name: Xcode project
         run: cd ios && xcodegen generate
       - name: Build for the simulator

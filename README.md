@@ -8,6 +8,10 @@ Energy card on Pikachu"). It explains each part of a card the first time it matt
 damage, Weakness), and it does the damage maths and keeps count. On screen there are only a few big words in capitals
 and the numbers. With the voice switched off, the same lines show as text for the parent to read aloud.
 
+The voice is [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) (Apache 2.0), run on the iPad itself by
+[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache 2.0), which uses espeak-ng to sound out the words. The
+iPad's own voice takes over if Kokoro can't run.
+
 **Level 1, the first battle:** one Basic Pokémon each, with some Energy cards beside it. A coin decides who starts.
 Each turn you put one Energy card on your Pokémon, then attack or tap DONE. Weakness doubles the damage, Resistance
 takes some off, and the first Pokémon knocked out loses. It plays each attack's printed damage plus the common effects

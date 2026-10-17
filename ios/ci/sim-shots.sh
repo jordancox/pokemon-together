@@ -37,6 +37,8 @@ run over 4 -- -demo over -lang en -quiet NO
 run auto 2 2 2 3 4 6 -- -auto YES -fast YES -lang it -quiet NO
 run auto-en 25 -- -auto YES -fast YES -lang en -quiet NO
 run auto-2 25 -- -auto YES -fast YES -lang it -quiet NO
+# Kokoro on the simulator: how long it takes to make lines (the log's "kokoro:" lines; the iPad is slower)
+run voice 75 -- -voicetest YES -lang it -quiet NO
 # Adding cards (no camera on the simulator: the name search, and cards added the way the add screen does). Last, as
 # the cards it adds stay in the app's data for any later run.
 run add-search 10 -- -demo add -query fuecoco -lang it
