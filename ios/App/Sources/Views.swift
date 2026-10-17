@@ -72,22 +72,24 @@ struct BattleView: View {
             // By the middle of the table: HP, the Pokémon, its Energy
             HStack(spacing: 0) {
                 HPView(hp: me.hp, full: me.card?.hp ?? 0).frame(width: 250)
-                ZStack {
-                    Ellipse().fill(.black.opacity(0.22)).frame(width: 160, height: 30).offset(y: arena * 0.36)
-                    SpriteView(dex: me.card?.dex, box: arena - 30)
+                ZStack(alignment: .bottom) { // the Pokémon stands on its shadow
+                    Ellipse().fill(.black.opacity(0.22)).frame(width: 160, height: 30)
+                    SpriteView(dex: me.card?.dex, box: arena - 40)
+                        .padding(.bottom, 14)
                         .modifier(Shake(t: CGFloat(game.shakes[side])))
                         .offset(y: game.lunge == side ? -60 : 0)
+                }
+                .frame(width: 320, height: arena, alignment: .bottom)
+                .overlay(alignment: .top) {
                     if let p = game.pop, p.side == side {
                         Text(p.text)
                             .font(.system(size: 64, weight: .black, design: .rounded))
                             .foregroundStyle(p.text.hasPrefix("+") ? Color.green : .white)
                             .shadow(color: .black.opacity(0.6), radius: 4)
-                            .offset(y: -arena * 0.3)
                             .id(p.id)
                             .transition(.scale(scale: 0.4).combined(with: .opacity))
                     }
                 }
-                .frame(width: 320, height: arena)
                 EnergyRow(types: me.energy).frame(width: 244)
             }
             .frame(height: arena)
@@ -226,7 +228,7 @@ struct Captions: View {
         VStack(alignment: .leading, spacing: 2) {
             ForEach(Array(lines.enumerated()), id: \.element.id) { i, c in
                 Text(c.text)
-                    .font(.system(size: 21, weight: .semibold, design: .rounded))
+                    .font(.system(size: 23, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(i == lines.count - 1 ? 1 : 0.6))
                     .lineLimit(1).minimumScaleFactor(0.6)
             }

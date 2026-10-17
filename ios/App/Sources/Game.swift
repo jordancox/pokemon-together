@@ -281,13 +281,14 @@ struct Pop: Equatable {
         case "plusOwnEnergy": dmg += each * sides[s].energy.count
         default: break
         }
-        var weak = false, resisted = false, shielded = false
+        var weak = false, resisted = false, shielded = false, toughened = false
         if dmg > 0 && kind != "noWeakness" {
             if foe.weak == me.type { dmg *= 2; weak = true }
             if foe.resist == me.type { dmg = max(0, dmg - (foe.resistBy ?? 30)); resisted = true }
         }
+        let before = dmg // after Weakness and Resistance, before the defender's own protection
         if dmg > 0 && sides[f].shield { dmg = 0; shielded = true }
-        if dmg > 0 && sides[f].reduce > 0 { dmg = max(0, dmg - sides[f].reduce) }
+        if dmg > 0 && sides[f].reduce > 0 { dmg = max(0, dmg - sides[f].reduce); toughened = true }
 
         // The hit
         withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) { lunge = s }
@@ -302,10 +303,12 @@ struct Pop: Equatable {
         }
         withAnimation { coinOut = false }
         if shielded { await say(Say.shielded(lang, name(f))) }
-        else if weak { await say(Say.weak(lang, name(f), Kind.name(me.type, lang), dmg)) }
-        else if resisted { await say(Say.resisted(lang, name(f), dmg)) }
-        else if dmg > 0 { await say(Say.damage(lang, dmg)) }
-        else if nothing || a.damage > 0 { await say(Say.nothing(lang)) }
+        else {
+            if weak { await say(Say.weak(lang, name(f), Kind.name(me.type, lang), before)) }
+            else if resisted { await say(Say.resisted(lang, name(f), before)) }
+            if toughened { await say(Say.toughened(lang, name(f), dmg)) }
+            else if !weak && !resisted { await say(dmg > 0 ? Say.damage(lang, dmg) : nothing || a.damage > 0 ? Say.nothing(lang) : "") }
+        }
 
         // What happens after the damage
         switch kind {

@@ -58,6 +58,10 @@ enum Say {
     static func braced(_ l: Lang, _ n: String, _ d: Int) -> String {
         t(l, "\(n) si fa duro: \(d) danni in meno al prossimo turno.", "\(n) toughens up: \(d) less damage next turn.")
     }
+    static func toughened(_ l: Lang, _ n: String, _ d: Int) -> String {
+        d > 0 ? t(l, "\(n) si è fatto duro: solo \(d) danni.", "\(n) toughened up: only \(d) damage.")
+            : t(l, "\(n) si è fatto duro: niente danni!", "\(n) toughened up: no damage!")
+    }
     static func restNext(_ l: Lang, _ n: String) -> String { t(l, "Al prossimo turno \(n) non potrà attaccare.", "\(n) can't attack next turn.") }
     static func foeLocked(_ l: Lang, _ n: String) -> String { t(l, "\(n) al prossimo turno non potrà attaccare!", "\(n) can't attack next turn!") }
     static func ko(_ l: Lang, _ n: String) -> String { t(l, "\(n) è KO!", "\(n) is knocked out!") }
