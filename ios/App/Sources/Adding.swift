@@ -339,6 +339,9 @@ struct AddView: View {
             }
             Divider()
             Text(Say.count(l, game.mine.count)).font(.system(size: 20, weight: .semibold, design: .rounded))
+            TimelineView(.periodic(from: .now, by: 2)) { _ in
+                Text(Say.voiceInfo(l, Kokoro.shared.on, Kokoro.shared.speed)).font(.system(size: 14, design: .rounded)).foregroundStyle(.gray)
+            }
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 6), spacing: 10) {
                     ForEach(game.mine) { c in

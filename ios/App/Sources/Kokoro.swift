@@ -4,8 +4,9 @@ import SherpaOnnx
 /// Kokoro, a free voice model (Apache 2.0), run on the iPad itself by sherpa-onnx (Apache 2.0). Jordan, 17 Oct 2026,
 /// after hearing it: "it does sound a lot better than the ipad's premium voices". The cloud Mac puts the model in the
 /// app (`ios/ci/kokoro.sh`). Making a sentence takes about as long as saying it, so each one is kept once made
-/// (Library/Caches/Voice) and the game asks for the ones it will need ahead of time. If the model isn't there or won't
-/// load, `on` is false and the iPad's own voice speaks instead.
+/// (Library/Caches/Voice) and the game asks for the ones it will need ahead of time. The sentences every game says are
+/// made on the cloud Mac before a TestFlight build (`ios/ci/voice.sh`, `-prerender`) and come in the app's Voice folder.
+/// If the model isn't there or won't load, `on` is false and the iPad's own voice speaks instead.
 final class Kokoro: @unchecked Sendable {
     static let shared = Kokoro()
     private static let speakers: [Lang: Int] = [.it: 35, .en: 21] // if_sara, bf_emma
@@ -20,6 +21,7 @@ final class Kokoro: @unchecked Sendable {
     }
 
     private let folder = Bundle.main.url(forResource: "Kokoro", withExtension: nil)
+    private let bundled = Bundle.main.url(forResource: "Voice", withExtension: nil) // made on the cloud Mac
     private let there: Bool // the model is in the app
     private let dir: URL
     private let cond = NSCondition()
@@ -28,6 +30,8 @@ final class Kokoro: @unchecked Sendable {
     private var waiters: [String: [CheckedContinuation<URL?, Never>]] = [:]
     private var tts: SherpaOnnxOfflineTtsWrapper?
     private var broken = false
+    private var busy = false
+    private var spent = 0.0, said = 0.0 // seconds spent making speech, and seconds of speech made
 
     private init() {
         there = folder.map { FileManager.default.fileExists(atPath: $0.appendingPathComponent("model.onnx").path) } ?? false
@@ -43,6 +47,20 @@ final class Kokoro: @unchecked Sendable {
         cond.lock()
         defer { cond.unlock() }
         return there && !broken
+    }
+
+    /// Seconds it takes to make one second of speech (under 1: faster than it talks). Nil until it has made some.
+    var speed: Double? {
+        cond.lock()
+        defer { cond.unlock() }
+        return said > 0 ? spent / said : nil
+    }
+
+    /// Sentences still to make.
+    var pending: Int {
+        cond.lock()
+        defer { cond.unlock() }
+        return now.count + soon.count + later.count + (busy ? 1 : 0)
     }
 
     /// Splits a line into sentences: each is made, kept and played on its own, so the next is made while one plays.
@@ -71,6 +89,14 @@ final class Kokoro: @unchecked Sendable {
 
     private func file(_ text: String, _ l: Lang) -> URL { dir.appendingPathComponent(key(text, l) + ".wav") }
 
+    /// Made already: on the cloud Mac (in the app) or on this iPad.
+    private func ready(_ text: String, _ l: Lang) -> URL? {
+        let name = key(text, l) + ".wav"
+        if let b = bundled?.appendingPathComponent(name), FileManager.default.fileExists(atPath: b.path) { return b }
+        let f = dir.appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: f.path) ? f : nil
+    }
+
     /// Make these sentences ahead of time (now: about to be said; soon: this game; later: when there's nothing else).
     func ask(_ texts: [String], _ l: Lang, _ when: When) {
         guard there else { return }
@@ -84,7 +110,7 @@ final class Kokoro: @unchecked Sendable {
                 else if when == .soon, let i = later.firstIndex(where: { $0.key == k }) { soon.append(later.remove(at: i)) }
                 continue
             }
-            if FileManager.default.fileExists(atPath: file(t, l).path) { continue }
+            if ready(t, l) != nil { continue }
             queued.insert(k)
             let j = Job(text: t, lang: l, key: k)
             switch when {
@@ -100,14 +126,13 @@ final class Kokoro: @unchecked Sendable {
     /// The sentence's sound, made now if it isn't yet. Nil when Kokoro can't, and the iPad's own voice says it.
     func get(_ text: String, _ l: Lang) async -> URL? {
         guard there else { return nil }
-        let f = file(text, l)
-        if FileManager.default.fileExists(atPath: f.path) { return f }
+        if let f = ready(text, l) { return f }
         ask([text], l, .now)
         let k = key(text, l)
         return await withCheckedContinuation { c in
             cond.lock()
             if broken { cond.unlock(); c.resume(returning: nil); return }
-            if FileManager.default.fileExists(atPath: f.path) { cond.unlock(); c.resume(returning: f); return }
+            if let f = ready(text, l) { cond.unlock(); c.resume(returning: f); return }
             waiters[k, default: []].append(c)
             cond.unlock()
         }
@@ -118,10 +143,12 @@ final class Kokoro: @unchecked Sendable {
             cond.lock()
             while now.isEmpty && soon.isEmpty && later.isEmpty { cond.wait() }
             let j = !now.isEmpty ? now.removeFirst() : !soon.isEmpty ? soon.removeFirst() : later.removeFirst()
+            busy = true
             cond.unlock()
             let made = autoreleasepool { make(j) }
             cond.lock()
             queued.remove(j.key)
+            busy = false
             var done = waiters.removeValue(forKey: j.key) ?? []
             if broken { // give up on everything: the iPad's voice takes over
                 done += waiters.values.flatMap { $0 }
@@ -129,8 +156,8 @@ final class Kokoro: @unchecked Sendable {
                 now = []; soon = []; later = []; queued = []
             }
             cond.unlock()
-            let f = file(j.text, j.lang)
-            for w in done { w.resume(returning: made && FileManager.default.fileExists(atPath: f.path) ? f : nil) }
+            let f = made ? ready(j.text, j.lang) : nil
+            for w in done { w.resume(returning: f) }
         }
     }
 
@@ -146,14 +173,19 @@ final class Kokoro: @unchecked Sendable {
         guard audio.save(filename: part.path) != 0 else { note("kokoro: couldn't save \"\(j.text)\""); return false }
         try? FileManager.default.removeItem(at: f)
         try? FileManager.default.moveItem(at: part, to: f)
-        note(String(format: "kokoro: %.1fs of speech made in %.1fs: %@", Double(audio.n) / Double(audio.sampleRate), Date().timeIntervalSince(t), j.text))
+        let length = Double(audio.n) / Double(audio.sampleRate), took = Date().timeIntervalSince(t)
+        cond.lock()
+        spent += took
+        said += length
+        cond.unlock()
+        note(String(format: "kokoro: %.1fs of speech made in %.1fs: %@", length, took, j.text))
         return true
     }
 
     private func load() {
         guard let m = folder?.path else { fail(); return }
         let t = Date()
-        let threads = min(4, max(1, ProcessInfo.processInfo.activeProcessorCount - 2))
+        let threads = min(4, max(2, ProcessInfo.processInfo.activeProcessorCount / 2)) // his iPad: 4 of its 8
         var config = sherpaOnnxOfflineTtsConfig(model: sherpaOnnxOfflineTtsModelConfig(
             kokoro: sherpaOnnxOfflineTtsKokoroModelConfig(model: m + "/model.onnx", voices: m + "/voices.bin", tokens: m + "/tokens.txt",
                                                           dataDir: m + "/espeak-ng-data", lang: "it"),

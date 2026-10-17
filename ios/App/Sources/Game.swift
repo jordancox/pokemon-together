@@ -103,28 +103,42 @@ struct Pop: Equatable {
         else if step == .pick { speak(Say.pick(lang, own)) }
         warm()
         if UserDefaults.standard.bool(forKey: "voicetest") { Task { await voiceTest() } }
+        if UserDefaults.standard.bool(forKey: "prerender") { Task { await prerender() } }
     }
 
     /// Kokoro makes ahead of time the sentences every game says (when the app opens, the language changes or the voice
-    /// comes back on). Each Pokémon's own are made when it's chosen (`warm(_:)`).
+    /// comes back on; and on the cloud Mac, `prerender`). Each Pokémon's own are made when it's added or chosen.
     func warm() {
-        let l = lang
-        var lines = [Say.pick(l, own), Say.ready(l), Say.flip(l), Say.firstTurnRule(l), Say.canAttack(l), Say.notEnough(l),
-                     Say.oneEnergy(l), Say.energyFirst(l), Say.heads(l), Say.tails(l), Say.nothing(l), Say.coinTeach(l), Say.again(l)]
-        lines += Kokoro.sentences(Say.chosen(l, "A", "B", own)).dropFirst() // the part after "A against B!"
-        lines += ["Grass", "Fire", "Water", "Lightning", "Psychic", "Fighting", "Darkness", "Metal", "Colorless"]
-            .flatMap { Kokoro.sentences(Say.turn(l, "A", $0)).dropFirst() } // "Put on a Lightning Energy card: the yellow one."
+        let l = lang, z = "ZZ" // a stand-in name: sentences with a Pokémon's name in them are left for warm(card)
+        var lines = [Say.pick(l, true), Say.pick(l, false), Say.ready(l), Say.flip(l), Say.firstTurnRule(l), Say.canAttack(l),
+                     Say.notEnough(l), Say.oneEnergy(l), Say.energyFirst(l), Say.heads(l), Say.tails(l), Say.nothing(l),
+                     Say.coinTeach(l), Say.again(l), Say.language(l), Say.voiceOn(l), Say.chosen(l, z, z, true),
+                     Say.notEnoughTeach(l, z, 1), Say.canAttackTeach(l, z), Say.leftTeach(l, z, 60, 20, 40)]
+        lines += ["Grass", "Fire", "Water", "Lightning", "Psychic", "Fighting", "Darkness", "Metal", "Colorless"].map { Say.turn(l, z, $0) }
         lines += stride(from: 10, through: 200, by: 10).map { Say.damage(l, $0) }
-        voice.prepare(lines, .later)
+        voice.prepare(lines.flatMap(Kokoro.sentences).filter { !$0.contains(z) }, .later)
     }
 
-    func warm(_ c: Card) {
+    func warm(_ c: Card, _ when: Kokoro.When = .soon) {
         let l = lang, n = c.name(l)
         var lines = [Say.picked(l, n), Say.starts(l, n), Say.ko(l, n), Say.wins(l, n), Say.wait(l, n)]
         lines += Set(c.moves.flatMap(\.cost) + [c.type]).sorted().map { Say.turn(l, n, $0) }
         lines += c.moves.map { Say.uses(l, n, $0.name(l)) }
         lines += stride(from: c.hp - 10, to: 0, by: -10).map { Say.left(l, n, $0) }
-        voice.prepare(lines, .soon)
+        voice.prepare(lines, when)
+    }
+
+    /// -prerender (the cloud Mac, before a TestFlight build, ios/ci/voice.sh): every game's sentences in both languages,
+    /// to go in the app.
+    func prerender() async {
+        for l in [Lang.it, .en] {
+            lang = l
+            voice.lang = l
+            warm()
+        }
+        await pause(3)
+        while Kokoro.shared.pending > 0 { await pause(2) }
+        note("prerender: done")
     }
 
     /// -voicetest (the cloud Mac): how long Kokoro takes to make some lines, in the log.
@@ -173,6 +187,7 @@ struct Pop: Equatable {
         mine.removeAll { $0.id == c.id }
         mine.append(c)
         Store.save(mine)
+        if c.playable { warm(c, .later) }
     }
 
     func remove(_ id: String) {

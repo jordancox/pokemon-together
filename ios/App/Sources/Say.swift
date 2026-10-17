@@ -156,6 +156,15 @@ enum Say {
             : t(l, "\(n) carte aggiunte", "\(n) cards added")
     }
 
+    /// Which voice is speaking, and how fast Kokoro makes speech on this iPad (for Claude, from a screenshot).
+    static func voiceInfo(_ l: Lang, _ kokoro: Bool, _ speed: Double?) -> String {
+        guard kokoro else { return t(l, "Voce: quella dell'iPad", "Voice: the iPad's own") }
+        guard let s = speed else { return t(l, "Voce: Kokoro", "Voice: Kokoro") }
+        let n = String(format: "%.1f", s)
+        return t(l, "Voce: Kokoro, 1 secondo di voce in \(n.replacingOccurrences(of: ".", with: ",")) secondi",
+                 "Voice: Kokoro, 1 second of speech in \(n) seconds")
+    }
+
     static func card(_ l: Lang, _ c: Card) -> String {
         let w = c.weak.map { t(l, " Debolezza: \(Kind.name($0, l)).", " Weak to \(Kind.name($0, l)).") } ?? ""
         return t(l, "\(c.name(l)). \(c.hp) punti salute. Tipo \(Kind.name(c.type, l)).", "\(c.name(l)). \(c.hp) HP. \(Kind.name(c.type, l)) type.") + w

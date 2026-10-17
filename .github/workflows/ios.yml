@@ -18,7 +18,7 @@ concurrency:
 jobs:
   ios:
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
       HOMEBREW_NO_INSTALL_CLEANUP: 1
@@ -44,6 +44,9 @@ jobs:
             | tee ios/build/xcodebuild.log | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" | head -80
       - name: Screenshots on a simulated iPad
         run: ios/ci/sim-shots.sh
+      - name: Sentences every game says, made ahead with Kokoro
+        if: inputs.testflight
+        run: ios/ci/voice.sh
       - name: Signing key, from the repo's secrets
         if: inputs.testflight
         run: |

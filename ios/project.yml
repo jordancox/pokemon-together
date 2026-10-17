@@ -42,6 +42,9 @@ targets:
       - path: build/Kokoro # the voice model: ci/kokoro.sh downloads it on the cloud Mac, never committed
         type: folder
         buildPhase: resources
+      - path: build/Voice # sentences made ahead on the cloud Mac before a TestFlight build (ci/voice.sh); empty otherwise
+        type: folder
+        buildPhase: resources
       - path: Assets.xcassets
     info:
       path: Generated/Info.plist

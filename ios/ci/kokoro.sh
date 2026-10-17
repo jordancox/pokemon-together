@@ -4,6 +4,7 @@
 # data, which turns words into those sounds. The full model, not the int8 one: on the VM it made speech faster.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+mkdir -p build/Voice # filled by ci/voice.sh before a TestFlight build
 [ -f build/Kokoro/model.onnx ] && exit 0
 mkdir -p build && cd build
 rm -rf Kokoro kokoro-multi-lang-v1_0
