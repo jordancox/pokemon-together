@@ -1,6 +1,6 @@
 # Insieme
 
-An iPad helper for a parent and a child learning the Pokémon Trading Card Game together, playing with the child's
+An iPad (or iPhone) helper for a parent and a child learning the Pokémon Trading Card Game together, playing with the child's
 own cards on the table, in Italian or English. The iPad lies flat between the two players, and each gets half of the
 screen. The app knows the cards in the collection and chooses a fair pair: each player finds the card shown on their half
 and puts it in front of them. A voice then runs the game, assuming nobody knows a single rule. It says whose turn it is and what to do with the cards ("put a Lightning

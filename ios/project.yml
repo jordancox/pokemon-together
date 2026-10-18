@@ -1,4 +1,4 @@
-# Insieme for iPad. XcodeGen turns this into Insieme.xcodeproj on the cloud Mac (.github/workflows/ios.yml); nobody
+# Insieme for iPad (and iPhone). XcodeGen turns this into Insieme.xcodeproj on the cloud Mac (.github/workflows/ios.yml); nobody
 # edits the Xcode project by hand. Set up like train-widget/ios/project.yml (the ios-testflight skill).
 name: Insieme
 options:
@@ -65,7 +65,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.jordancox.insieme
         PRODUCT_NAME: Insieme
-        # iPad only, set on the target (XcodeGen's iOS preset puts "1,2" here, over any project-wide value)
-        TARGETED_DEVICE_FAMILY: "2"
+        # iPad and iPhone (Jordan, 18 Oct 2026: "we should do an iPhone build too"); the phone gets the same board, scaled
+        TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_USER_SCRIPT_SANDBOXING: NO

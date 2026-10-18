@@ -47,6 +47,9 @@ jobs:
       - name: Sentences every game says, made ahead with Kokoro
         if: inputs.testflight
         run: ios/ci/voice.sh
+      - name: Screenshots on a simulated iPhone
+        continue-on-error: true
+        run: ios/ci/sim-shots.sh iphone
       - name: Signing key, from the repo's secrets
         if: inputs.testflight
         run: |
@@ -64,7 +67,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$KP" "$KC" >/dev/null
           security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
           security find-identity -v -p codesigning "$KC"
-      - name: Build for iPad and send it to TestFlight
+      - name: Build for iPad and iPhone and send it to TestFlight
         if: inputs.testflight
         env:
           KEY_ID: ${{ secrets.ASC_KEY_ID }}

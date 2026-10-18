@@ -283,11 +283,13 @@ struct AddView: View {
         _adder = State(initialValue: Adder(game: game))
     }
 
+    private let phone = UIDevice.current.userInterfaceIdiom == .phone
+
     var body: some View {
         let l = game.lang
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text(Say.hisCards(l)).font(.system(size: 34, weight: .heavy, design: .rounded))
+                Text(Say.hisCards(l)).font(.system(size: phone ? 28 : 34, weight: .heavy, design: .rounded))
                 Spacer()
                 Button { game.closeAdding() } label: {
                     Text(Say.doneWord(l)).font(.system(size: 22, weight: .bold, design: .rounded)).padding(.horizontal, 12)
@@ -296,7 +298,7 @@ struct AddView: View {
             }
             if camera {
                 ScannerView { adder.scan($0) }
-                    .frame(height: 320)
+                    .frame(height: phone ? 220 : 320)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
             }
             HStack {
@@ -323,7 +325,7 @@ struct AddView: View {
                                 AsyncImage(url: b.thumb) { img in img.resizable().aspectRatio(contentMode: .fit) } placeholder: {
                                     RoundedRectangle(cornerRadius: 10).fill(.gray.opacity(0.2))
                                 }
-                                .frame(width: 150, height: 209)
+                                .frame(width: phone ? 110 : 150, height: phone ? 153 : 209)
                                 .overlay(alignment: .topTrailing) {
                                     if game.mine.contains(where: { $0.id == b.id }) {
                                         Image(systemName: "checkmark.circle.fill").font(.system(size: 34)).foregroundStyle(.green, .white).padding(6)
@@ -335,7 +337,7 @@ struct AddView: View {
                         }
                     }
                 }
-                .frame(height: 215)
+                .frame(height: phone ? 159 : 215)
             }
             Divider()
             Text(Say.count(l, game.mine.count)).font(.system(size: 20, weight: .semibold, design: .rounded))
@@ -343,7 +345,7 @@ struct AddView: View {
                 Text(Say.voiceInfo(l, Kokoro.shared.on, Kokoro.shared.speed)).font(.system(size: 14, design: .rounded)).foregroundStyle(.gray)
             }
             ScrollView {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 6), spacing: 10) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: phone ? 3 : 6), spacing: 10) {
                     ForEach(game.mine) { c in
                         VStack(spacing: 2) {
                             SpriteView(dex: c.dex, box: 64).frame(height: 70)
@@ -363,7 +365,7 @@ struct AddView: View {
                 }
             }
         }
-        .padding(24)
+        .padding(phone ? 16 : 24)
         .background(Color.white)
         .preferredColorScheme(.light)
         .task {
