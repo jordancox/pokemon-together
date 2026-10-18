@@ -56,11 +56,15 @@ struct Pop: Equatable {
     let voice = Voice()
     var mine: [Card] = Store.load() // his cards, added on the iPad (AddView)
     var adding = false
-    /// The cards to pick from: his, once at least two of them can play; the sample cards until then.
+    /// The cards to pick from: only his, as they're added (Jordan, 18 Oct 2026: "it needs to be blank, and we just add
+    /// the ones that we have"). The sample cards only on the cloud Mac (-demo, -auto), for the screenshots.
     var cards: [Card] {
         let his = mine.filter(\.playable)
-        return (his.count >= 2 ? his : Card.all.filter(\.playable)).sorted { ($0.dex ?? 0) < ($1.dex ?? 0) }
+        return (his.count >= 2 || !trial ? his : Card.all.filter(\.playable)).sorted { ($0.dex ?? 0) < ($1.dex ?? 0) }
     }
+    /// His cards that can't play yet (Evolutions, no damaging attack): shown faded, so every card added shows up.
+    var later: [Card] { mine.filter { !$0.playable }.sorted { ($0.dex ?? 0) < ($1.dex ?? 0) } }
+    private let trial = UserDefaults.standard.string(forKey: "demo") != nil || UserDefaults.standard.bool(forKey: "auto")
     /// His cards are in the app (two or more that can play), so the voice can send them to find the cards in the pile.
     var own: Bool { mine.filter(\.playable).count >= 2 }
     @ObservationIgnored var told = Set<String>() // the longer explanations, said once each time the app opens
@@ -100,7 +104,7 @@ struct Pop: Equatable {
             }
         }
         if UserDefaults.standard.bool(forKey: "auto") { Task { await autoplay() } }
-        else if step == .pick { speak(Say.pick(lang, own)) }
+        else if step == .pick { speak(Say.pick(lang, cards.count)) }
         warm()
         if UserDefaults.standard.bool(forKey: "voicetest") { Task { await voiceTest() } }
         if UserDefaults.standard.bool(forKey: "prerender") { Task { await prerender() } }
@@ -110,7 +114,7 @@ struct Pop: Equatable {
     /// comes back on; and on the cloud Mac, `prerender`). Each Pokémon's own are made when it's added or chosen.
     func warm() {
         let l = lang, z = "ZZ" // a stand-in name: sentences with a Pokémon's name in them are left for warm(card)
-        var lines = [Say.pick(l, true), Say.pick(l, false), Say.ready(l), Say.flip(l), Say.firstTurnRule(l), Say.canAttack(l),
+        var lines = [Say.pick(l, 0), Say.pick(l, 1), Say.pick(l, 2), Say.ready(l), Say.flip(l), Say.firstTurnRule(l), Say.canAttack(l),
                      Say.notEnough(l), Say.oneEnergy(l), Say.energyFirst(l), Say.heads(l), Say.tails(l), Say.nothing(l),
                      Say.coinTeach(l), Say.again(l), Say.language(l), Say.voiceOn(l), Say.chosen(l, z, z, true),
                      Say.notEnoughTeach(l, z, 1), Say.canAttackTeach(l, z), Say.leftTeach(l, z, 60, 20, 40)]
@@ -156,7 +160,7 @@ struct Pop: Equatable {
         lang = l
         voice.lang = l
         UserDefaults.standard.set(l.rawValue, forKey: "lang")
-        speak(Say.language(l) + (step == .pick ? " " + Say.pick(l, own) : ""))
+        speak(Say.language(l) + (step == .pick ? " " + Say.pick(l, cards.count) : ""))
         warm()
         for c in sides.compactMap(\.card) { warm(c) }
     }
@@ -202,7 +206,7 @@ struct Pop: Equatable {
 
     func closeAdding() {
         adding = false
-        if step == .pick { speak(Say.pick(lang, own)) }
+        if step == .pick { speak(Say.pick(lang, cards.count)) }
     }
 
     // MARK: Picking
@@ -214,6 +218,12 @@ struct Pop: Equatable {
         Sound.play("pop")
         warm(c)
         speak(sides.allSatisfy { $0.card != nil } ? Say.chosen(lang, name(0), name(1), own) + " " + Say.ready(lang) : Say.picked(lang, c.name(lang)))
+    }
+
+    /// Tapping one of his cards that can't play yet.
+    func notYet(_ c: Card) {
+        guard step == .pick else { return }
+        speak(Say.notYet(lang, c))
     }
 
     /// The Poké Ball before both have a Pokémon: the app chooses for whoever hasn't. The second has about the same HP as
@@ -237,7 +247,10 @@ struct Pop: Equatable {
     /// The Poké Ball in the middle: choose the Pokémon, start, say it again, or play again.
     func ball() {
         switch step {
-        case .pick: if sides.allSatisfy({ $0.card != nil }) { Task { await go() } } else { choose() }
+        case .pick:
+            if sides.allSatisfy({ $0.card != nil }) { Task { await go() } }
+            else if cards.count < 2 { speak(Say.pick(lang, cards.count)) }
+            else { choose() }
         case .over: again()
         case .coin, .battle: if !quiet { speak(voice.last) }
         }

@@ -47,10 +47,17 @@ teaching happens in the app, by voice, at the moment it matters, never in a chat
 - **His cards are added in the app** (Jordan, 17 Oct: doing it through Claude was "outside the app… bit clunky"): the
   + tile on the pick screen opens `AddView` (`Adding.swift`). The camera (VisionKit's DataScanner; not on the
   simulator, so only tried on his iPad) reads the set code and number at the bottom left ("SVI 038/198"; the language
-  is printed beside the code, "SVI IT", often read as one word) → `Data/sets.json` → the TCGdex id. Or a name is
-  typed. The card, its pictures and sprite are fetched from TCGdex/PokeAPI and saved in the app's Documents
-  (`collection.json`); effects are read with the same `Data/effects.json` as `tools/cards.py`. Until he has two
-  playable cards, the pick screen shows the 12 sample cards built in from `cards.txt`.
+  is printed beside the code, "SVI IT", often read as one word). The number after the slash (198) narrows it to the
+  sets with that many cards (`Data/sets.json`: code, count and date of every set), and only those sets' codes are
+  looked for: a card is full of words that are an old set's code ("HP", Italian "la", "si", "ma"), which picked the
+  wrong card in build 12. A parent can also type the number ("38/198", "SVI 38"), a name, or both ("pikachu 25");
+  results are newest first, each with its code and number under it to check against the card. The card, its
+  pictures and sprite are fetched from TCGdex/PokeAPI and saved in the app's Documents (`collection.json`); effects
+  are read with the same `Data/effects.json` as `tools/cards.py`.
+- **The pick screen starts empty** (Jordan, 18 Oct, on build 12's sample cards: "it needs to be blank, and we just
+  add the ones that we have, and they start showing up bit by bit"): only his cards, still pictures (not animated), the
+  ones that can't play yet faded (tapping one says why). The 12 sample cards from `cards.txt` are only for the cloud
+  Mac's screenshots and test games (`-demo`, `-auto`).
 
 ## Building and shipping
 

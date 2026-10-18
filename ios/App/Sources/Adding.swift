@@ -42,39 +42,76 @@ enum Effects {
     }
 }
 
-/// The codes printed on cards (SVI, MEW, MEG…) → TCGdex set ids (Data/sets.json, from tools/cards.py sets).
+/// Every printed set (Data/sets.json, from tools/cards.py sets): the code printed on its cards ("SVI"), the number
+/// after the slash ("198" in 038/198) and when it came out.
 enum Sets {
-    static let ids: [String: String] = {
+    struct Info: Decodable {
+        let code: String?
+        let of: Int?
+        let date: String?
+    }
+
+    static let all: [String: Info] = {
         guard let url = Bundle.main.url(forResource: "sets", withExtension: "json", subdirectory: "Data"),
               let data = try? Data(contentsOf: url) else { return [:] }
-        return (try? JSONDecoder().decode([String: String].self, from: data)) ?? [:]
+        return (try? JSONDecoder().decode([String: Info].self, from: data)) ?? [:]
     }()
 
-    /// The set code among what the camera read. The language is printed beside it ("SVI IT"), so it's often read as
-    /// one word ("SVIIT"); a 1 can be read for an I.
-    static func code(in texts: [String]) -> String? {
-        let words = texts.flatMap { $0.uppercased().components(separatedBy: CharacterSet.alphanumerics.inverted) }.filter { $0.count >= 2 }
+    /// Code → set id, the newest set when two share a code.
+    static let ids: [String: String] = {
+        var out: [String: String] = [:]
+        for (id, s) in all.sorted(by: { ($0.value.date ?? "") > ($1.value.date ?? "") }) where s.code != nil && out[s.code!] == nil {
+            out[s.code!] = id
+        }
+        return out
+    }()
+
+    static func date(_ set: String) -> String { all[set]?.date ?? "" }
+
+    /// The sets whose cards end in this number ("/198"), newest first.
+    static func with(total: Int) -> [String] {
+        all.filter { $0.value.of == total }.map(\.key).sorted { date($0) > date($1) }
+    }
+
+    /// One of these sets' codes in the text. Only those sets: a card is full of words that are some old set's code
+    /// ("HP", or Italian "la", "si", "ma"). The language is printed beside the code ("SVI IT"), so it's often read as one
+    /// word ("SVIIT"); a 1 can be read for an I.
+    static func code(in text: String, among sets: [String]) -> String? {
+        let codes = Set(sets.compactMap { all[$0]?.code })
+        let words = text.uppercased().components(separatedBy: CharacterSet.alphanumerics.inverted).filter { $0.count >= 2 }
         for w in words {
-            for c in [w, String(w.dropLast(2)), w.replacingOccurrences(of: "1", with: "I"), String(w.replacingOccurrences(of: "1", with: "I").dropLast(2))]
-            where c.count >= 2 && ids[c] != nil { return c }
+            let i = w.replacingOccurrences(of: "1", with: "I")
+            for c in [w, String(w.dropLast(2)), i, String(i.dropLast(2))] where codes.contains(c) { return sets.first { all[$0]?.code == c } }
         }
         return nil
     }
 
-    /// The card's number: "038" in "038/198".
-    static func number(in text: String) -> String? {
+    /// The card's number and the set's: "038" and 198 in "038/198".
+    static func number(in text: String) -> (String, Int)? {
         guard let rx = try? NSRegularExpression(pattern: "(\\d{1,3})\\s*/\\s*(\\d{2,3})"),
-              let m = rx.firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length)) else { return nil }
-        return (text as NSString).substring(with: m.range(at: 1))
+              let m = rx.firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length)),
+              let total = Int((text as NSString).substring(with: m.range(at: 2))) else { return nil }
+        return ((text as NSString).substring(with: m.range(at: 1)), total)
+    }
+
+    /// What's printed at the bottom left of the card, to check against his: "SVI 038/198".
+    static func label(_ b: TCGdex.Brief) -> String {
+        let s = all[b.set]
+        let n = s?.of.map { "\(b.number)/\($0)" } ?? b.number
+        return [s?.code, n].compactMap { $0 }.joined(separator: " ")
     }
 }
 
 enum TCGdex {
     struct Brief: Decodable, Identifiable, Hashable {
         let id: String
+        let localId: String?
         let name: String
         let image: String?
         var thumb: URL? { image.flatMap { URL(string: $0 + "/low.webp") } }
+        var number: String { localId ?? String(id.split(separator: "-").last ?? "") }
+        /// "sv01" for "sv01-038" (a set id can have a dash in it too: "30th-c-001")
+        var set: String { String(id.dropLast(number.count + 1)) }
     }
 
     struct Full: Decodable {
@@ -130,27 +167,51 @@ enum TCGdex {
     /// Printed cards only, not the Pokémon TCG Pocket game's.
     private static func printed(_ id: String) -> Bool { id.range(of: "^(A\\d|B\\d|P-A)", options: .regularExpression) == nil }
 
-    /// Newest sets first: his cards are most likely Mega Evolution or Scarlet & Violet.
-    private static func rank(_ id: String) -> Int { id.hasPrefix("me") ? 3 : id.hasPrefix("sv") ? 2 : id.hasPrefix("swsh") ? 1 : 0 }
-
-    static func search(_ name: String) async -> [Brief] {
-        var list = await get([Brief].self, "en/cards", [URLQueryItem(name: "name", value: name)]) ?? []
-        if list.isEmpty { list = await get([Brief].self, "it/cards", [URLQueryItem(name: "name", value: name)]) ?? [] }
-        return Array(list.filter { printed($0.id) && $0.image != nil }.sorted { rank($0.id) > rank($1.id) }.prefix(60))
+    /// With a picture, newest sets first: his cards are most likely the latest.
+    private static func newest(_ list: [Brief]) -> [Brief] {
+        Array(list.filter { printed($0.id) && $0.image != nil }.sorted { Sets.date($0.set) > Sets.date($1.set) }.prefix(60))
     }
 
-    /// The card the camera saw: by set code and number, or else the cards with that number whose name it also read.
-    static func match(code: String?, number: String, text: String) async -> [Brief] {
-        if let code, let set = Sets.ids[code], let n = Int(number) {
-            for local in Set([number, String(format: "%03d", n), String(n)]) {
-                if let c = await get(Brief.self, "en/cards/\(set)-\(local)") { return [c] }
-            }
+    /// One set's card with this number (printed "038", "38" or "TG05").
+    private static func card(_ set: String, _ number: String) async -> Brief? {
+        let n = Int(number)
+        var tried = Set<String>()
+        for local in [number, n.map { String(format: "%03d", $0) }, n.map(String.init)].compactMap({ $0 }) where tried.insert(local).inserted {
+            if let c = await get(Brief.self, "en/cards/\(set)-\(local)") { return c }
         }
-        let list = await get([Brief].self, "en/cards", [URLQueryItem(name: "localId", value: number)]) ?? []
+        return nil
+    }
+
+    /// What a parent typed: a name ("pikachu"), the number at the bottom left ("38/198", "SVI 38/198"), a set code and
+    /// a number ("SVI 38"), or a name and a number ("pikachu 38").
+    static func search(_ q: String) async -> [Brief] {
+        if case let (n, total)? = Sets.number(in: q) { return await match(number: n, of: total, line: q, text: q) }
+        let words = q.split(separator: " ").map(String.init)
+        let name = words.filter { Int($0) == nil }.joined(separator: " ")
+        if let n = words.first(where: { Int($0) != nil }), let k = Int(n) {
+            if let set = Sets.ids[name.uppercased()] { return await card(set, n).map { [$0] } ?? [] }
+            var query = [URLQueryItem(name: "localId", value: String(k))]
+            if !name.isEmpty { query.append(URLQueryItem(name: "name", value: name)) }
+            var list = await get([Brief].self, "en/cards", query) ?? []
+            if list.isEmpty, !name.isEmpty { list = await get([Brief].self, "it/cards", query) ?? [] }
+            return newest(list.filter { Int($0.number) == k })
+        }
+        var list = await get([Brief].self, "en/cards", [URLQueryItem(name: "name", value: q)]) ?? []
+        if list.isEmpty { list = await get([Brief].self, "it/cards", [URLQueryItem(name: "name", value: q)]) ?? [] }
+        return newest(list)
+    }
+
+    /// The card with this number: in the set whose code is printed beside it, or else in each set whose cards end in
+    /// the same "/198" (keeping those whose name was read too, when there are some).
+    static func match(number: String, of total: Int, line: String, text: String) async -> [Brief] {
+        let sets = Sets.with(total: total)
+        if let set = Sets.code(in: line, among: sets) ?? Sets.code(in: text, among: sets), let c = await card(set, number) { return [c] }
+        var found: [Brief] = []
+        for set in sets.prefix(6) { if let c = await card(set, number) { found.append(c) } }
+        found = found.filter { printed($0.id) && $0.image != nil }
         let seen = text.lowercased()
-        return list.filter { b in
-            printed(b.id) && b.image != nil && seen.contains(b.name.lowercased().replacingOccurrences(of: " ex", with: ""))
-        }.sorted { rank($0.id) > rank($1.id) }
+        let named = found.filter { seen.contains($0.name.lowercased().replacingOccurrences(of: " ex", with: "")) }
+        return named.isEmpty ? found : named
     }
 
     /// The whole card in both languages, with its pictures and sprite saved on the iPad.
@@ -231,23 +292,22 @@ enum Store {
         busy = true
         message = Say.looking(game.lang)
         found = await TCGdex.search(q)
+        note("search \"\(q)\": \(found.count) found: " + found.prefix(8).map { "\($0.id) (\(Sets.label($0)))" }.joined(separator: ", "))
         message = found.isEmpty ? Say.noneFound(game.lang) : Say.tapHis(game.lang)
         busy = false
     }
 
-    /// What the camera reads, many times a second.
+    /// What the camera reads, many times a second: each line of text it sees.
     func scan(_ texts: [String]) {
-        let all = texts.joined(separator: " ")
-        guard !busy, let number = Sets.number(in: all) else { return }
-        let code = Sets.code(in: texts)
-        let key = "\(code ?? "?") \(number)"
+        guard !busy, let line = texts.first(where: { Sets.number(in: $0) != nil }), case let (number, total)? = Sets.number(in: line) else { return }
+        let key = "\(line) \(number)/\(total)"
         guard key != lastKey || Date().timeIntervalSince(lastTime) > 3 else { return }
         lastKey = key
         lastTime = Date()
         Task {
             busy = true
             message = Say.looking(game.lang)
-            let r = await TCGdex.match(code: code, number: number, text: all)
+            let r = await TCGdex.match(number: number, of: total, line: line, text: texts.joined(separator: " "))
             if !r.isEmpty { found = r }
             message = r.isEmpty ? Say.cantRead(game.lang) : Say.tapHis(game.lang)
             busy = false
@@ -260,7 +320,7 @@ enum Store {
         switch await TCGdex.fetch(b.id) {
         case .ok(let c):
             game.add(c)
-            message = c.playable ? Say.added(game.lang, c.name(game.lang)) : Say.addedForLater(game.lang, c.name(game.lang))
+            message = c.playable ? Say.added(game.lang, c.name(game.lang)) : Say.addedForLater(game.lang, c)
             found = []
             query = ""
             lastKey = ""
@@ -322,14 +382,20 @@ struct AddView: View {
                     LazyHStack(spacing: 12) {
                         ForEach(adder.found) { b in
                             Button { Task { await adder.add(b) } } label: {
-                                AsyncImage(url: b.thumb) { img in img.resizable().aspectRatio(contentMode: .fit) } placeholder: {
-                                    RoundedRectangle(cornerRadius: 10).fill(.gray.opacity(0.2))
-                                }
-                                .frame(width: phone ? 110 : 150, height: phone ? 153 : 209)
-                                .overlay(alignment: .topTrailing) {
-                                    if game.mine.contains(where: { $0.id == b.id }) {
-                                        Image(systemName: "checkmark.circle.fill").font(.system(size: 34)).foregroundStyle(.green, .white).padding(6)
+                                VStack(spacing: 4) {
+                                    AsyncImage(url: b.thumb) { img in img.resizable().aspectRatio(contentMode: .fit) } placeholder: {
+                                        RoundedRectangle(cornerRadius: 10).fill(.gray.opacity(0.2))
                                     }
+                                    .frame(width: phone ? 110 : 150, height: phone ? 153 : 209)
+                                    .overlay(alignment: .topTrailing) {
+                                        if game.mine.contains(where: { $0.id == b.id }) {
+                                            Image(systemName: "checkmark.circle.fill").font(.system(size: 34)).foregroundStyle(.green, .white).padding(6)
+                                        }
+                                    }
+                                    // the code and number printed at the bottom left, to check against his card
+                                    Text(Sets.label(b)).font(.system(size: phone ? 14 : 16, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+                                        .frame(width: phone ? 110 : 150)
                                 }
                             }
                             .buttonStyle(.plain)
@@ -337,7 +403,7 @@ struct AddView: View {
                         }
                     }
                 }
-                .frame(height: phone ? 159 : 215)
+                .frame(height: phone ? 182 : 240)
             }
             Divider()
             Text(Say.count(l, game.mine.count)).font(.system(size: 20, weight: .semibold, design: .rounded))

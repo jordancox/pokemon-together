@@ -28,11 +28,16 @@ struct PickView: View {
                         Button { game.pick(side, c) } label: { PickCell(card: c, lang: game.lang, on: chosen?.id == c.id) }
                             .buttonStyle(.plain)
                     }
-                    // Add his cards (the camera, or a name)
+                    ForEach(game.later) { c in // his cards that can't play yet
+                        Button { game.notYet(c) } label: { PickCell(card: c, lang: game.lang, on: false).opacity(0.45) }
+                            .buttonStyle(.plain)
+                    }
+                    // Add his cards (the camera, or a name); it pulses until two can play
                     Button { game.openAdding() } label: {
                         Image(systemName: "plus").font(.system(size: 46, weight: .bold)).foregroundStyle(.black.opacity(0.6))
                             .frame(width: 122, height: 124)
-                            .background(RoundedRectangle(cornerRadius: 18).fill(.white.opacity(0.5)))
+                            .background(RoundedRectangle(cornerRadius: 18).fill(.white.opacity(game.cards.count < 2 ? 0.9 : 0.5)))
+                            .modifier(Pulse(on: game.cards.count < 2))
                     }
                     .buttonStyle(.plain)
                 }
@@ -52,7 +57,7 @@ struct PickCell: View {
     let on: Bool
     var body: some View {
         VStack(spacing: 2) {
-            SpriteView(dex: card.dex, box: 84).frame(width: 100, height: 88)
+            SpriteView(dex: card.dex, box: 84, still: true).frame(width: 100, height: 88)
             Text(card.name(lang).uppercased())
                 .font(.system(size: 15, weight: .heavy, design: .rounded))
                 .lineLimit(1).minimumScaleFactor(0.6)
@@ -339,10 +344,11 @@ struct CardSlot: View {
 struct SpriteView: View {
     let dex: Int?
     var box: CGFloat = 180
+    var still = false // the first frame only: a screen full of moving Pokémon is too much (the pick screen)
     var body: some View {
         if let img = Art.sprite(dex) {
             let s = min(box / max(img.size.width, img.size.height, 1), 3.2)
-            AnimatedImage(image: img).frame(width: img.size.width * s, height: img.size.height * s)
+            AnimatedImage(image: still ? img.images?.first ?? img : img).frame(width: img.size.width * s, height: img.size.height * s)
         } else {
             Pokeball().frame(width: box * 0.6, height: box * 0.6)
         }

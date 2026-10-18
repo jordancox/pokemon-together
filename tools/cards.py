@@ -3,7 +3,7 @@
 #
 #   python3 tools/cards.py              cards.txt → ios/App/Data/cards.json, plus any missing sprites in ios/App/Sprites
 #   python3 tools/cards.py find NAME [NUMBER]   look a card up (English and Italian names both work)
-#   python3 tools/cards.py sets         the set codes printed on cards → ios/App/Data/sets.json (for the app's camera)
+#   python3 tools/cards.py sets         every set's code, card count and date → ios/App/Data/sets.json (the app's camera and search)
 #   python3 tools/cards.py art [DIR]    the card pictures, into ios/build/Cards (the cloud Mac runs this before each build)
 #
 # Only the standard library, so it runs as it is on the cloud Mac. The card pictures are never committed: the cloud Mac
@@ -129,16 +129,19 @@ def art(out):
 
 
 def sets():
-    """The codes printed on cards (SVI, MEW, MEG…) → TCGdex set ids: ios/App/Data/sets.json, for the app's camera."""
+    """Every printed set (TCGdex id → the code printed on its cards, like SVI; the number after the slash, like the 198
+    in 038/198; its release date): ios/App/Data/sets.json, for the app's camera and search."""
     ids = [x['id'] for x in json.loads(get(f'{API}/en/sets'))]
     with ThreadPoolExecutor(6) as ex: full = list(ex.map(lambda i: json.loads(get(f'{API}/en/sets/{i}') or b'{}'), ids))
     out = {}
     for s in full:
+        if not s.get('id') or re.match(r'^(A\d|B\d|P-A)', s['id']): continue  # not Pokémon TCG Pocket
         code = (s.get('abbreviation') or {}).get('official')
-        if code and s.get('id') and not re.match(r'^(A\d|B\d|P-A)', s['id']):  # not Pokémon TCG Pocket
-            out.setdefault(code.upper(), s['id'])
-    (ROOT / 'ios/App/Data/sets.json').write_text(json.dumps(out, indent=0, sort_keys=True) + '\n')
-    print(f'{len(out)} set codes → ios/App/Data/sets.json')
+        out[s['id']] = {'code': code.upper() if code else None, 'of': (s.get('cardCount') or {}).get('official'),
+                        'date': s.get('releaseDate')}
+    lines = [f'{json.dumps(k)}: {json.dumps(v, ensure_ascii=False)}' for k, v in sorted(out.items())]
+    (ROOT / 'ios/App/Data/sets.json').write_text('{\n' + ',\n'.join(lines) + '\n}\n')
+    print(f'{len(out)} sets, {sum(1 for v in out.values() if v["code"])} with a code → ios/App/Data/sets.json')
 
 
 def find(name, number=None):

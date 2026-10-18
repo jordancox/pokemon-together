@@ -14,12 +14,18 @@ enum Say {
     // Spoken
     static func voiceOn(_ l: Lang) -> String { t(l, "Eccomi!", "I'm back!") }
     static func language(_ l: Lang) -> String { t(l, "Italiano!", "English!") }
-    /// The app chooses the Pokémon (the Poké Ball), so nobody needs to know which cards are good; `own` is whether his
-    /// cards are in the app yet.
-    static func pick(_ l: Lang, _ own: Bool) -> String {
-        own ? t(l, "Toccate la Poké Ball: scelgo io un Pokémon per ognuno.", "Tap the Poké Ball and I'll choose a Pokémon for each of you.")
-            : t(l, "Queste sono carte di prova. Per giocare con le vostre carte, toccate il più. Oppure toccate la Poké Ball per provare.",
-                "These are sample cards. To play with your own cards, tap the plus. Or tap the Poké Ball to try them out.")
+    /// The app chooses the Pokémon (the Poké Ball), so nobody needs to know which cards are good; `n` is how many of
+    /// his cards can play.
+    static func pick(_ l: Lang, _ n: Int) -> String {
+        n == 0 ? t(l, "Toccate il più e aggiungete le sue carte Pokémon, una alla volta.", "Tap the plus and add his Pokémon cards, one at a time.")
+            : n == 1 ? t(l, "Aggiungete almeno un altro Pokémon: ne serve uno a testa.", "Add at least one more Pokémon: you need one each.")
+            : t(l, "Toccate la Poké Ball: scelgo io un Pokémon per ognuno.", "Tap the Poké Ball and I'll choose a Pokémon for each of you.")
+    }
+    /// One of his cards that can't play yet, tapped on the pick screen.
+    static func notYet(_ l: Lang, _ c: Card) -> String {
+        let n = c.name(l)
+        return c.stage != "Basic" ? t(l, "\(n) è un'evoluzione: entra in gioco in un livello più avanti.", "\(n) is an Evolution card: it joins the game in a later level.")
+            : t(l, "\(n) non ha un attacco che fa danni: entra in gioco in un livello più avanti.", "\(n) has no attack that does damage: it joins the game in a later level.")
     }
     static func picked(_ l: Lang, _ n: String) -> String { "\(n)!" }
     static func chosen(_ l: Lang, _ a: String, _ b: String, _ own: Bool) -> String {
@@ -131,28 +137,30 @@ enum Say {
     // The add screen, for a grown-up
     static func hisCards(_ l: Lang) -> String { t(l, "Le sue carte", "His cards") }
     static func addHint(_ l: Lang) -> String {
-        t(l, "Inquadra il codice in basso a sinistra di ogni sua carta Pokémon (per esempio SVI 038/198), oppure scrivi il nome. Aggiungile tutte: l'app sa quali possono giocare.",
-          "Point the camera at the code at the bottom left of each of his Pokémon cards (like SVI 038/198), or type the name. Add them all: the app knows which ones can play.")
+        t(l, "Inquadra il codice in basso a sinistra di ogni sua carta Pokémon (per esempio SVI 038/198), oppure scrivi il numero (38/198) o il nome. Aggiungile tutte: l'app sa quali possono giocare.",
+          "Point the camera at the code at the bottom left of each of his Pokémon cards (like SVI 038/198), or type the number (38/198) or the name. Add them all: the app knows which ones can play.")
     }
-    static func typeName(_ l: Lang) -> String { t(l, "Nome del Pokémon", "Pokémon name") }
+    static func typeName(_ l: Lang) -> String { t(l, "Numero (38/198) o nome", "Number (38/198) or name") }
     static func searchWord(_ l: Lang) -> String { t(l, "Cerca", "Search") }
     static func looking(_ l: Lang) -> String { t(l, "Cerco…", "Looking…") }
-    static func noneFound(_ l: Lang) -> String { t(l, "Non trovo niente. Prova un altro nome.", "Nothing found. Try another name.") }
-    static func tapHis(_ l: Lang) -> String { t(l, "Tocca la sua carta.", "Tap his card.") }
+    static func noneFound(_ l: Lang) -> String {
+        t(l, "Non trovo niente. Scrivi il numero in basso a sinistra (come 38/198), o il nome.", "Nothing found. Type the number at the bottom left (like 38/198), or the name.")
+    }
+    static func tapHis(_ l: Lang) -> String {
+        t(l, "Tocca la sua carta: il numero sotto è quello stampato in basso a sinistra.", "Tap his card: the number under it is the one printed at the bottom left.")
+    }
     static func cantRead(_ l: Lang) -> String {
         t(l, "Non riesco a leggerla: avvicina il codice in basso a sinistra, o scrivi il nome.", "Can't read it: bring the code at the bottom left closer, or type the name.")
     }
     static func adding(_ l: Lang) -> String { t(l, "Aggiungo…", "Adding…") }
     static func added(_ l: Lang, _ n: String) -> String { t(l, "\(n) aggiunto! Avanti la prossima.", "\(n) added! Next card.") }
-    static func addedForLater(_ l: Lang, _ n: String) -> String {
-        t(l, "\(n) aggiunto. È un'evoluzione: entra in gioco in un livello più avanti.", "\(n) added. It's an Evolution card: it joins the game in a later level.")
-    }
+    static func addedForLater(_ l: Lang, _ c: Card) -> String { t(l, "Aggiunto. ", "Added. ") + notYet(l, c) }
     static func notPokemon(_ l: Lang, _ n: String) -> String {
         t(l, "\(n) non è un Pokémon: per ora si usano solo le carte Pokémon.", "\(n) isn't a Pokémon: only Pokémon cards for now.")
     }
     static func offline(_ l: Lang) -> String { t(l, "Per aggiungere le carte serve internet.", "Adding cards needs the internet.") }
     static func count(_ l: Lang, _ n: Int) -> String {
-        n == 0 ? t(l, "Nessuna ancora: finché non ne aggiungi due, si gioca con le carte di prova.", "None yet: until you add two, the sample cards are used.")
+        n == 0 ? t(l, "Nessuna ancora", "None yet")
             : t(l, "\(n) carte aggiunte", "\(n) cards added")
     }
 

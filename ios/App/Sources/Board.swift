@@ -78,7 +78,7 @@ struct Seam: View {
             .padding(.horizontal, 24)
             Pokeball(top: Kind.color(game.sides[1].card?.type), bottom: Kind.color(game.sides[0].card?.type))
                 .frame(width: 96, height: 96)
-                .modifier(Pulse(on: game.step == .pick || game.step == .over))
+                .modifier(Pulse(on: (game.step == .pick && game.cards.count > 1) || game.step == .over))
                 .contentShape(Circle())
                 .onTapGesture { game.ball() }
                 .onLongPressGesture(minimumDuration: 1.2) { game.quit() }

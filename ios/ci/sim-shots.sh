@@ -33,6 +33,7 @@ run() { # name, seconds before each shot…, launch arguments after --
   local k=1; for w in "${waits[@]}"; do sleep "$w"; shot "$name-$k"; k=$((k + 1)); done
 }
 if [ "$KIND" = iphone ]; then
+  run phone-empty 5 -- -lang it -quiet NO
   run phone-pick 5 -- -demo pick -lang it -quiet NO
   run phone-battle 5 -- -demo battle -lang it -quiet NO
   run phone-quiet 4 -- -demo battle -lang en -quiet YES
@@ -46,6 +47,7 @@ if [ "$KIND" = iphone ]; then
   xcrun simctl shutdown "$UDID" || true
   exit 0
 fi
+run empty 5 -- -lang it -quiet NO # a new iPad: none of his cards yet
 run pick 5 -- -demo pick -lang it -quiet NO
 run battle 5 -- -demo battle -lang it -quiet NO
 run battle-en 4 -- -demo battle -lang en -quiet NO
@@ -60,6 +62,10 @@ run voice 75 -- -voicetest YES -lang it -quiet NO
 # Adding cards (no camera on the simulator: the name search, and cards added the way the add screen does). Last, as
 # the cards it adds stay in the app's data for any later run.
 run add-search 10 -- -demo add -query fuecoco -lang it
+run add-number 10 -- -demo add -query 38/198 -lang it
+run add-camera 10 -- -demo add -query "HP 60 LA SI 038/198" -lang it # as the camera reads a card: not the old sets HP, LA, SI
+run add-code 10 -- -demo add -query "G SVIIT 038/198" -lang en
+run add-name 10 -- -demo add -query "pikachu 25" -lang en
 run added 15 -- -add sv01-038,sv01-036,me01-001,sv01-037 -demo pick -lang it -quiet NO
 run add-list 6 -- -demo add -lang en
 xcrun simctl terminate "$UDID" "$ID" || true
