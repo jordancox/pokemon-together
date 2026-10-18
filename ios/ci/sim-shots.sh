@@ -10,13 +10,22 @@ APP=ios/build/dd/Build/Products/Debug-iphonesimulator/Insieme.app
 ID=org.jordancox.insieme
 OUT=$PWD/ios/build/shots; mkdir -p "$OUT" # absolute: the simulator opens the log files itself
 KIND=${1:-ipad}
-# An 11-inch iPad Air (his is an 11-inch iPad Pro), else any iPad; on a phone run, the plain newest iPhone
-UDID=$(xcrun simctl list -j devices available | KIND=$KIND python3 -c '
+# His iPad: an 11-inch iPad Pro from 2018 (834×1194 points, the size the board is drawn at). Made as a simulator if
+# Xcode still has that model; else an 11-inch iPad Pro (same width), else any iPad. On a phone run, the plain newest iPhone.
+UDID=
+if [ "$KIND" = ipad ]; then
+  TYPE=$(xcrun simctl list -j devicetypes | python3 -c '
+import json, sys
+print(next((t["identifier"] for t in json.load(sys.stdin)["devicetypes"] if t["name"] == "iPad Pro (11-inch) (1st generation)"), ""))')
+  [ -n "$TYPE" ] && UDID=$(xcrun simctl create "His iPad Pro 11 (2018)" "$TYPE" 2>/dev/null) || UDID=
+  echo "his model: ${UDID:-not in this Xcode (${TYPE:-no device type})}"
+fi
+[ -n "$UDID" ] || UDID=$(xcrun simctl list -j devices available | KIND=$KIND python3 -c '
 import json, os, re, sys
 d = json.load(sys.stdin)["devices"]
 phone = os.environ["KIND"] == "iphone"
 sims = [x for k, v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone" if phone else "iPad")]
-best = [x for x in sims if re.fullmatch(r"iPhone \d+", x["name"])] if phone else [x for x in sims if "Air" in x["name"] and "11" in x["name"]]
+best = [x for x in sims if re.fullmatch(r"iPhone \d+", x["name"])] if phone else [x for x in sims if "Pro" in x["name"] and "11" in x["name"]]
 pick = sorted(best or sims, key=lambda x: [int(n) for n in re.findall(r"\d+", x["name"])] or [0])
 print(pick[-1]["udid"] if pick else "")')
 [ -n "$UDID" ] || { echo "no $KIND simulator"; xcrun simctl list devices available; exit 1; }
