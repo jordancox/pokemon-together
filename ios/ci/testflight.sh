@@ -19,12 +19,15 @@ echo "archived, build $BUILD"
 # linked into it, and Apple threw build 12 away for it (ITMS-90208: "onnxruntime.framework does not support the
 # minimum OS Version"). Take out every framework the app doesn't load; the export signs the app again.
 APP=ios/build/Insieme.xcarchive/Products/Applications/Insieme.app
+LOADS=$(otool -L "$APP/Insieme") # kept in a variable: grep -q on a pipe can end it early, and pipefail calls that a miss
 for f in "$APP"/Frameworks/*.framework; do
   [ -e "$f" ] || continue
   n=$(basename "$f" .framework)
-  if otool -L "$APP/Insieme" | grep -q "/$n.framework/"; then echo "loaded, kept: $n.framework"
+  if grep -q "/$n.framework/" <<< "$LOADS"; then echo "loaded, kept: $n.framework"
   else echo "not loaded, taken out: $n.framework ($(file -b "$f/$n" | head -c 80))"; rm -rf "$f"; fi
 done
+STATIC=$(find "$APP" -type f -exec file {} + | grep "ar archive" || true) # a static library left in the app: Apple refuses it
+if [ -n "$STATIC" ]; then echo "$STATIC"; echo "a static library is still in the app"; exit 1; fi
 cat > ios/build/export.plist <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -40,4 +43,13 @@ PLIST
 xcodebuild -exportArchive -archivePath ios/build/Insieme.xcarchive -exportOptionsPlist ios/build/export.plist \
   -exportPath ios/build/export "${AUTH[@]}" > ios/build/export.log 2>&1 || { grep -iE "error|fail" ios/build/export.log | head -40; exit 1; }
 grep -iE "upload|EXPORT SUCCEEDED" ios/build/export.log | tail -5
-echo "sent to TestFlight: build $BUILD (Apple takes a few minutes to process it)"
+echo "sent to TestFlight: build $BUILD"
+# "Upload succeeded" isn't "accepted": Apple checks the build afterwards and threw build 12 away, saying so only by email.
+# Wait for its answer: refused fails the run with Apple's reasons; not done in 20 minutes is only a warning.
+set +e
+python3 ios/ci/asc.py accepted org.jordancox.insieme "$BUILD" 20
+case $? in
+  0) ;;
+  1) exit 1 ;;
+  *) echo "::warning::Apple hasn't finished checking build $BUILD: look in App Store Connect" ;;
+esac

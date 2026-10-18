@@ -34,7 +34,9 @@ final class Kokoro: @unchecked Sendable {
     private var spent = 0.0, said = 0.0 // seconds spent making speech, and seconds of speech made
 
     private init() {
-        there = folder.map { FileManager.default.fileExists(atPath: $0.appendingPathComponent("model.onnx").path) } ?? false
+        // -nokokoro (the cloud Mac's screenshots): its background work slowed every screenshot until build 18's hung
+        there = !UserDefaults.standard.bool(forKey: "nokokoro")
+            && folder.map { FileManager.default.fileExists(atPath: $0.appendingPathComponent("model.onnx").path) } ?? false
         dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("Voice")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         guard there else { note("kokoro: no model in the app"); return }
@@ -185,7 +187,8 @@ final class Kokoro: @unchecked Sendable {
     private func load() {
         guard let m = folder?.path else { fail(); return }
         let t = Date()
-        let threads = min(4, max(2, ProcessInfo.processInfo.activeProcessorCount / 2)) // his iPad: 4 of its 8
+        let cores = ProcessInfo.processInfo.activeProcessorCount // his iPad: 4 of its 8; the cloud Mac's -prerender: all
+        let threads = UserDefaults.standard.bool(forKey: "prerender") ? max(2, cores) : min(4, max(2, cores / 2))
         var config = sherpaOnnxOfflineTtsConfig(model: sherpaOnnxOfflineTtsModelConfig(
             kokoro: sherpaOnnxOfflineTtsKokoroModelConfig(model: m + "/model.onnx", voices: m + "/voices.bin", tokens: m + "/tokens.txt",
                                                           dataDir: m + "/espeak-ng-data", lang: "it"),

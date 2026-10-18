@@ -27,12 +27,23 @@ plutil -p "$APP/Info.plist" > "$OUT/info.txt" 2>&1 || true
 ls -R "$APP" | head -80 > "$OUT/bundle.txt" 2>&1 || true
 xcrun simctl install "$UDID" "$APP"
 shot() { xcrun simctl io "$UDID" screenshot "$OUT/$1.png" >/dev/null 2>&1; echo "shot $1"; }
+# Kokoro is off (-nokokoro) except for the voice test: making sentences in the background kept the cloud Mac's 3 cores
+# busy, so every launch and screenshot crawled (11 minutes for a minute of iPhone screens; build 18's hung). Each run
+# says how long it took, and SLOW when that's well over its waits.
 run() { # name, seconds before each shot…, launch arguments after --
   local name=$1; shift; local waits=(); while [ "$1" != "--" ]; do waits+=("$1"); shift; done; shift
-  xcrun simctl launch --terminate-running-process --stdout="$OUT/$name.log" --stderr="$OUT/$name.log" "$UDID" "$ID" "$@" >/dev/null
-  local k=1; for w in "${waits[@]}"; do sleep "$w"; shot "$name-$k"; k=$((k + 1)); done
+  local quiet=(-nokokoro YES); [[ " $* " == *" -voicetest "* ]] && quiet=()
+  local start=$SECONDS want=0
+  xcrun simctl launch --terminate-running-process --stdout="$OUT/$name.log" --stderr="$OUT/$name.log" "$UDID" "$ID" "$@" "${quiet[@]}" >/dev/null
+  local k=1; for w in "${waits[@]}"; do sleep "$w"; want=$((want + w)); shot "$name-$k"; k=$((k + 1)); done
+  local took=$((SECONDS - start))
+  echo "  $name: ${took}s$([ $took -gt $((want + 30)) ] && echo " SLOW (waits ${want}s)")"
 }
 if [ "$KIND" = iphone ]; then
+  xcrun simctl shutdown all || true # the iPad simulator is done: two at once on 3 cores is too many
+  xcrun simctl boot "$UDID" 2>/dev/null || true
+  xcrun simctl bootstatus "$UDID" -b >/dev/null
+  xcrun simctl install "$UDID" "$APP"
   run phone-empty 5 -- -lang it -quiet NO
   run phone-pick 5 -- -demo pick -lang it -quiet NO
   run phone-battle 5 -- -demo battle -lang it -quiet NO

@@ -18,7 +18,7 @@ concurrency:
 jobs:
   ios:
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
       HOMEBREW_NO_INSTALL_CLEANUP: 1
@@ -43,12 +43,13 @@ jobs:
             ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= build 2>&1 \
             | tee ios/build/xcodebuild.log | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" | head -80
       - name: Screenshots on a simulated iPad
+        timeout-minutes: 20
         run: ios/ci/sim-shots.sh
       - name: Sentences every game says, made ahead with Kokoro
         if: inputs.testflight
         run: ios/ci/voice.sh
       - name: Screenshots on a simulated iPhone
-        # not on TestFlight runs: build 18's hung after 5 screens and nearly used up the hour
+        # not on TestFlight runs (they need the time; the screens are checked on every push)
         if: ${{ !inputs.testflight }}
         continue-on-error: true
         timeout-minutes: 8

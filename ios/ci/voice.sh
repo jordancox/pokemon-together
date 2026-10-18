@@ -12,7 +12,7 @@ print(next((x["udid"] for v in d.values() for x in v), ""))')
 [ -n "$UDID" ] || { echo "no simulator running"; exit 0; }
 LOG=$PWD/ios/build/shots/prerender.log
 xcrun simctl launch --terminate-running-process --stdout="$LOG" --stderr="$LOG" "$UDID" "$ID" -prerender YES -quiet NO -lang it >/dev/null
-for _ in $(seq 1 180); do grep -q "prerender: done" "$LOG" && break; sleep 5; done
+for _ in $(seq 1 240); do grep -q "prerender: done" "$LOG" && break; sleep 5; done # 20 minutes at most
 xcrun simctl terminate "$UDID" "$ID" || true
 DATA=$(xcrun simctl get_app_container "$UDID" "$ID" data)
 mkdir -p ios/build/Voice
