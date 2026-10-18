@@ -4,3 +4,15 @@ ios/*.xcodeproj/
 ios/Generated/
 ios/build/
 __pycache__/
+
+# screen recordings and photos Jordan drops in at the top (the repo is public)
+/*.MP4
+/*.mp4
+/*.MOV
+/*.mov
+/*.PNG
+/*.png
+/*.jpg
+/*.JPG
+/*.jpeg
+/*.HEIC

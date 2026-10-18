@@ -277,8 +277,10 @@ enum Store {
     var found: [TCGdex.Brief] = []
     var message = ""
     var busy = false
-    @ObservationIgnored private var lastKey = ""
+    @ObservationIgnored private var lastKey = ""   // the number last looked up: once per card in view
     @ObservationIgnored private var lastTime = Date.distantPast
+    @ObservationIgnored private var seen = ""      // the number on the last frames, and how many in a row
+    @ObservationIgnored private var seenCount = 0
     @ObservationIgnored let game: Game
 
     init(game: Game) {
@@ -297,18 +299,23 @@ enum Store {
         busy = false
     }
 
-    /// What the camera reads, many times a second: each line of text it sees.
+    /// What the camera reads, many times a second: each line of text it sees. A card is looked up once, when its number
+    /// has read the same on three frames in a row (a blurry frame can misread a digit). Build 20 looked it up again
+    /// whenever the line read a little differently, so "Looking…" and the pictures flickered (Jordan, 18 Oct, on the
+    /// iPhone: "headache inducing with this constant popping up on screen stuff").
     func scan(_ texts: [String]) {
         guard !busy, let line = texts.first(where: { Sets.number(in: $0) != nil }), case let (number, total)? = Sets.number(in: line) else { return }
-        let key = "\(line) \(number)/\(total)"
-        guard key != lastKey || Date().timeIntervalSince(lastTime) > 3 else { return }
+        let key = "\(Int(number) ?? 0)/\(total)"
+        if key == seen { seenCount += 1 } else { seen = key; seenCount = 1 }
+        // a card not found is tried again after 5 seconds, not on every frame
+        guard seenCount >= 3, key != lastKey || (found.isEmpty && Date().timeIntervalSince(lastTime) > 5) else { return }
         lastKey = key
         lastTime = Date()
         Task {
             busy = true
-            message = Say.looking(game.lang)
+            if found.isEmpty { message = Say.looking(game.lang) }
             let r = await TCGdex.match(number: number, of: total, line: line, text: texts.joined(separator: " "))
-            if !r.isEmpty { found = r }
+            found = r
             message = r.isEmpty ? Say.cantRead(game.lang) : Say.tapCard(game.lang)
             busy = false
         }
@@ -323,7 +330,7 @@ enum Store {
             message = c.playable ? Say.added(game.lang, c.name(game.lang)) : Say.addedForLater(game.lang, c)
             found = []
             query = ""
-            lastKey = ""
+            lastTime = .distantFuture // the card just added, still under the camera, isn't looked up again
         case .notPokemon(let n): message = Say.notPokemon(game.lang, n)
         case .offline: message = Say.offline(game.lang)
         }
@@ -459,8 +466,9 @@ struct ScannerView: UIViewControllerRepresentable {
     }
 
     func makeUIViewController(context: Context) -> DataScannerViewController {
+        // no boxes drawn round the text it reads, and no "Slow down" tips: they popped up all the time (build 20)
         let vc = DataScannerViewController(recognizedDataTypes: [.text()], qualityLevel: .accurate, recognizesMultipleItems: true,
-                                           isHighFrameRateTrackingEnabled: false, isHighlightingEnabled: true)
+                                           isHighFrameRateTrackingEnabled: false, isGuidanceEnabled: false, isHighlightingEnabled: false)
         vc.delegate = context.coordinator
         return vc
     }
