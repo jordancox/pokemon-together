@@ -107,6 +107,7 @@ struct Pop: Equatable {
         else if step == .pick { speak(Say.pick(lang, cards.count)) }
         warm()
         if UserDefaults.standard.bool(forKey: "voicetest") { Task { await voiceTest() } }
+        if UserDefaults.standard.bool(forKey: "scantest") { Task { await scanTest() } }
         if UserDefaults.standard.bool(forKey: "prerender") { Task { await prerender() } }
     }
 
@@ -154,6 +155,20 @@ struct Pop: Equatable {
             await say(Say.turnFirst(l, "Pikachu", "Lightning"))
         }
         note("voicetest: done")
+    }
+
+    /// -scantest (the cloud Mac, which has no camera): what the camera reads from one card held still, a frame every
+    /// 50 ms, each line read a little differently and one digit misread. It must be looked up once (build 20 flickered
+    /// looking it up again and again); ios/ci/sim-shots.sh fails otherwise.
+    func scanTest() async {
+        let adder = Adder(game: self)
+        let frames = [["SHF EN 001/072"], ["0 001/072 ●"], ["SHF 001/072", "Rowlet"], ["SHF EN 007/072"], ["001/072"]]
+        for i in 0..<30 {
+            adder.scan(frames[i % frames.count])
+            await pause(0.05)
+        }
+        while adder.busy { await pause(0.1) }
+        note("scantest: \(adder.lookups) lookup\(adder.lookups == 1 ? "" : "s"), found \(adder.found.map(\.id))")
     }
 
     func setLang(_ l: Lang) {

@@ -277,6 +277,7 @@ enum Store {
     var found: [TCGdex.Brief] = []
     var message = ""
     var busy = false
+    @ObservationIgnored private(set) var lookups = 0 // camera lookups, for -scantest
     @ObservationIgnored private var lastKey = ""   // the number last looked up: once per card in view
     @ObservationIgnored private var lastTime = Date.distantPast
     @ObservationIgnored private var seen = ""      // the number on the last frames, and how many in a row
@@ -311,6 +312,7 @@ enum Store {
         guard seenCount >= 3, key != lastKey || (found.isEmpty && Date().timeIntervalSince(lastTime) > 5) else { return }
         lastKey = key
         lastTime = Date()
+        lookups += 1
         Task {
             busy = true
             if found.isEmpty { message = Say.looking(game.lang) }

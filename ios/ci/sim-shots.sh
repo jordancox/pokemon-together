@@ -84,6 +84,10 @@ run auto-2 25 -- -auto YES -fast YES -lang it -quiet NO
 run voice 75 -- -voicetest YES -lang it -quiet NO
 # Adding cards (no camera on the simulator: the name search, and cards added the way the add screen does). Last, as
 # the cards it adds stay in the app's data for any later run.
+# The camera, without a camera: one card's frames must be looked up once (build 20's screen flickered)
+run scantest 8 -- -scantest YES -lang en
+grep -q "scantest: 1 lookup," "$OUT/scantest.log" || { echo "scantest failed:"; grep "scantest" "$OUT/scantest.log"; exit 1; }
+grep "scantest" "$OUT/scantest.log"
 run add-search 10 -- -demo add -query fuecoco -lang it
 run add-number 10 -- -demo add -query 38/198 -lang it
 run add-camera 10 -- -demo add -query "HP 60 LA SI 038/198" -lang it # as the camera reads a card: not the old sets HP, LA, SI
