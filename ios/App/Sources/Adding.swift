@@ -156,14 +156,19 @@ enum TCGdex {
         case offline
     }
 
-    /// Every request gives up after a few seconds: with no limit, one that hung kept the camera from reading the next
+    /// Looking cards up gives up after a few seconds: with no limit, one that hung kept the camera from reading the next
     /// card (Jordan, 18 Oct: "I load four and then can't load anymore. Have to close the app").
-    private static let net: URLSession = {
+    private static let net = session(request: 10, total: 25)
+    /// Pictures download in the background, and TCGdex can take more than ten seconds to start sending one (two came
+    /// back missing on the cloud Mac with the lookups' limits), so they get a minute.
+    private static let pictures = session(request: 60, total: 120)
+
+    private static func session(request: Double, total: Double) -> URLSession {
         let c = URLSessionConfiguration.default
-        c.timeoutIntervalForRequest = 10
-        c.timeoutIntervalForResource = 25
+        c.timeoutIntervalForRequest = request
+        c.timeoutIntervalForResource = total
         return URLSession(configuration: c)
-    }()
+    }
 
     private static func get<T: Decodable>(_ type: T.Type, _ path: String, _ query: [URLQueryItem] = []) async -> T? {
         var c = URLComponents(string: "https://api.tcgdex.net/v2/" + path)
@@ -275,7 +280,7 @@ enum TCGdex {
 
     @discardableResult
     private static func download(_ s: String, to dest: URL) async -> Bool {
-        guard let url = URL(string: s), let r = try? await net.data(from: url),
+        guard let url = URL(string: s), let r = try? await pictures.data(from: url),
               (r.1 as? HTTPURLResponse)?.statusCode == 200 else { return false }
         try? FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
         return (try? r.0.write(to: dest)) != nil
