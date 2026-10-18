@@ -48,7 +48,10 @@ jobs:
         if: inputs.testflight
         run: ios/ci/voice.sh
       - name: Screenshots on a simulated iPhone
+        # not on TestFlight runs: build 18's hung after 5 screens and nearly used up the hour
+        if: ${{ !inputs.testflight }}
         continue-on-error: true
+        timeout-minutes: 8
         run: ios/ci/sim-shots.sh iphone
       - name: Signing key, from the repo's secrets
         if: inputs.testflight
