@@ -17,7 +17,7 @@ enum Say {
     /// The app chooses the Pokémon (the Poké Ball), so nobody needs to know which cards are good; `n` is how many of
     /// his cards can play.
     static func pick(_ l: Lang, _ n: Int) -> String {
-        n == 0 ? t(l, "Toccate il più e aggiungete le sue carte Pokémon, una alla volta.", "Tap the plus and add his Pokémon cards, one at a time.")
+        n == 0 ? t(l, "Toccate il più e aggiungete le vostre carte Pokémon, una alla volta.", "Tap the plus and add your Pokémon cards, one at a time.")
             : n == 1 ? t(l, "Aggiungete almeno un altro Pokémon: ne serve uno a testa.", "Add at least one more Pokémon: you need one each.")
             : t(l, "Toccate la Poké Ball: scelgo io un Pokémon per ognuno.", "Tap the Poké Ball and I'll choose a Pokémon for each of you.")
     }
@@ -135,10 +135,12 @@ enum Say {
           "Another game? Put the cards back in the pile, then tap the Poké Ball: I'll choose new Pokémon.")
     }
     // The add screen, for a grown-up
-    static func hisCards(_ l: Lang) -> String { t(l, "Le sue carte", "His cards") }
+    /// One pile for both players, whichever half's + opened it (Jordan, 18 Oct: "why does it say 'his cards' even when
+    /// I'm adding the ones on the bottom")
+    static func yourCards(_ l: Lang) -> String { t(l, "Le vostre carte", "Your cards") }
     static func addHint(_ l: Lang) -> String {
-        t(l, "Inquadra il codice in basso a sinistra di ogni sua carta Pokémon (per esempio SVI 038/198), oppure scrivi il numero (38/198) o il nome. Aggiungile tutte: l'app sa quali possono giocare.",
-          "Point the camera at the code at the bottom left of each of his Pokémon cards (like SVI 038/198), or type the number (38/198) or the name. Add them all: the app knows which ones can play.")
+        t(l, "Inquadra il codice in basso a sinistra di ogni carta Pokémon (per esempio SVI 038/198), oppure scrivi il numero (38/198) o il nome. Aggiungile tutte: l'app sa quali possono giocare.",
+          "Point the camera at the code at the bottom left of each Pokémon card (like SVI 038/198), or type the number (38/198) or the name. Add them all: the app knows which ones can play.")
     }
     static func typeName(_ l: Lang) -> String { t(l, "Numero (38/198) o nome", "Number (38/198) or name") }
     static func searchWord(_ l: Lang) -> String { t(l, "Cerca", "Search") }
@@ -147,7 +149,7 @@ enum Say {
         t(l, "Non trovo niente. Scrivi il numero in basso a sinistra (come 38/198), o il nome.", "Nothing found. Type the number at the bottom left (like 38/198), or the name.")
     }
     static func tapHis(_ l: Lang) -> String {
-        t(l, "Tocca la sua carta: il numero sotto è quello stampato in basso a sinistra.", "Tap his card: the number under it is the one printed at the bottom left.")
+        t(l, "Tocca la carta giusta: il numero sotto è quello stampato in basso a sinistra.", "Tap the right card: the number under it is the one printed at the bottom left.")
     }
     static func cantRead(_ l: Lang) -> String {
         t(l, "Non riesco a leggerla: avvicina il codice in basso a sinistra, o scrivi il nome.", "Can't read it: bring the code at the bottom left closer, or type the name.")

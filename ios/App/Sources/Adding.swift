@@ -349,7 +349,7 @@ struct AddView: View {
         let l = game.lang
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text(Say.hisCards(l)).font(.system(size: phone ? 28 : 34, weight: .heavy, design: .rounded))
+                Text(Say.yourCards(l)).font(.system(size: phone ? 28 : 34, weight: .heavy, design: .rounded))
                 Spacer()
                 Button { game.closeAdding() } label: {
                     Text(Say.doneWord(l)).font(.system(size: 22, weight: .bold, design: .rounded)).padding(.horizontal, 12)
