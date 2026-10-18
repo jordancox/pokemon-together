@@ -1,7 +1,8 @@
 import SwiftUI
 
 // The iPad lies flat between the two players, upright for the one at the bottom. Each gets half the screen, the top
-// half turned round to face the other player. Each half is designed at one size (half an 11-inch iPad) and scaled to fit.
+// half turned round to face the other player. Each half is designed at one size (half an 11-inch iPad) and scaled to fit
+// (smaller on an iPhone).
 let halfSize = CGSize(width: 834, height: 575)
 
 @main
@@ -34,20 +35,22 @@ struct Half: View {
     let game: Game
     let side: Int
     var body: some View {
-        Fit(size: halfSize) {
-            ZStack {
-                Backdrop(type: game.sides[side].card?.type, lit: game.step == .battle && game.turn == side)
-                switch game.step {
-                case .pick: PickView(game: game, side: side)
-                case .coin, .battle: BattleView(game: game, side: side)
-                case .over: OverView(game: game, side: side)
+        ZStack { // the colour and the zoomed card fill the whole half, past the scaled part on a phone
+            Backdrop(type: game.sides[side].card?.type, lit: game.step == .battle && game.turn == side)
+            Fit(size: halfSize) {
+                ZStack {
+                    switch game.step {
+                    case .pick: PickView(game: game, side: side)
+                    case .coin, .battle: BattleView(game: game, side: side)
+                    case .over: OverView(game: game, side: side)
+                    }
+                    CoinView(angle: game.coinAngle, pokemon: game.coinPokemon, front: game.sides[0].card?.dex, back: game.sides[1].card?.dex)
+                        .position(x: halfSize.width / 2, y: 230)
+                        .opacity(game.coinOut ? 1 : 0)
+                        .allowsHitTesting(false)
                 }
-                CoinView(angle: game.coinAngle, pokemon: game.coinPokemon, front: game.sides[0].card?.dex, back: game.sides[1].card?.dex)
-                    .position(x: halfSize.width / 2, y: 230)
-                    .opacity(game.coinOut ? 1 : 0)
-                    .allowsHitTesting(false)
-                if game.zoom[side] { Zoom(game: game, side: side) }
             }
+            if game.zoom[side] { Zoom(game: game, side: side) }
         }
         .clipped()
     }
@@ -200,7 +203,7 @@ struct Zoom: View {
     var body: some View {
         ZStack {
             Color.black.opacity(0.65)
-            if let c = game.sides[side].card { CardSlot(card: c, lang: game.lang).frame(width: 395, height: 550) }
+            if let c = game.sides[side].card { Fit(size: halfSize) { CardSlot(card: c, lang: game.lang).frame(width: 395, height: 550) } }
         }
         .contentShape(Rectangle())
         .onTapGesture { game.read(side) }
