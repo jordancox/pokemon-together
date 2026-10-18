@@ -121,34 +121,38 @@ struct BattleView: View {
         let me = game.sides[side]
         let mine = game.step == .battle && game.turn == side
         let isParent = side == parentSide
-        let arena: CGFloat = isParent ? 120 : 220
+        let arena: CGFloat = 220
         VStack(spacing: 0) {
-            // the parent's half: what's happening and what to do, written out to read and pass on
-            if isParent { Captions(lines: game.captions).frame(height: 100) }
-            // By the middle of the table: HP, the Pokémon, its Energy
-            HStack(spacing: 0) {
-                HPView(hp: me.hp, full: me.card?.hp ?? 0).frame(width: 250)
-                ZStack(alignment: .bottom) { // the Pokémon stands on its shadow
-                    Ellipse().fill(.black.opacity(0.22)).frame(width: 160, height: 30)
-                    SpriteView(dex: me.card?.dex, box: arena - 50)
-                        .padding(.bottom, 14)
-                        .modifier(Shake(t: CGFloat(game.shakes[side])))
-                        .offset(y: game.lunge == side ? -60 : 0)
-                }
-                .frame(width: 320, height: arena, alignment: .bottom)
-                .overlay(alignment: .top) {
-                    if let p = game.pop, p.side == side {
-                        Text(p.text)
-                            .font(.system(size: 64, weight: .black, design: .rounded))
-                            .foregroundStyle(p.text.hasPrefix("+") ? Color.green : .white)
-                            .shadow(color: .black.opacity(0.6), radius: 4)
-                            .id(p.id)
-                            .transition(.scale(scale: 0.4).combined(with: .opacity))
+            if isParent {
+                // every line of this game, to read and pass on, and to scroll back to when they come quickly
+                LogView(lines: game.captions).frame(height: 170)
+                ParentStatus(hp: me.hp, energy: me.energy).frame(height: 50)
+            } else {
+                // By the middle of the table: HP, the Pokémon, its Energy
+                HStack(spacing: 0) {
+                    HPView(hp: me.hp, full: me.card?.hp ?? 0).frame(width: 250)
+                    ZStack(alignment: .bottom) { // the Pokémon stands on its shadow
+                        Ellipse().fill(.black.opacity(0.22)).frame(width: 160, height: 30)
+                        SpriteView(dex: me.card?.dex, box: arena - 50)
+                            .padding(.bottom, 14)
+                            .modifier(Shake(t: CGFloat(game.shakes[side])))
+                            .offset(y: game.lunge == side ? -60 : 0)
                     }
+                    .frame(width: 320, height: arena, alignment: .bottom)
+                    .overlay(alignment: .top) {
+                        if let p = game.pop, p.side == side {
+                            Text(p.text)
+                                .font(.system(size: 64, weight: .black, design: .rounded))
+                                .foregroundStyle(p.text.hasPrefix("+") ? Color.green : .white)
+                                .shadow(color: .black.opacity(0.6), radius: 4)
+                                .id(p.id)
+                                .transition(.scale(scale: 0.4).combined(with: .opacity))
+                        }
+                    }
+                    EnergyRow(types: me.energy).frame(width: 244)
                 }
-                EnergyRow(types: me.energy).frame(width: 244)
+                .frame(height: arena)
             }
-            .frame(height: arena)
             // By the player: the card, and what to do
             HStack(alignment: .top, spacing: 18) {
                 CardSlot(card: me.card, lang: game.lang)
@@ -257,13 +261,10 @@ struct OverView: View {
     let side: Int
     var body: some View {
         let won = game.winner == side
-        if side == parentSide {
-            VStack(spacing: 24) {
+        if side == parentSide { // the game's lines stay, to finish reading them out (the last says who won)
+            VStack(spacing: 16) {
                 Hint(text: Say.tapBallAgain(game.lang)).padding(.top, 22)
-                Spacer()
-                Text(Say.wins(game.lang, game.name(game.winner ?? 0)))
-                    .font(.system(size: 44, weight: .black, design: .rounded)).foregroundStyle(.white)
-                Spacer()
+                LogView(lines: game.captions)
             }
             .frame(width: halfSize.width, height: halfSize.height)
         } else {
@@ -293,29 +294,51 @@ struct OverView: View {
     }
 }
 
-/// The parent's half: the last two lines of the game, the newest in full, to read and pass on.
-struct Captions: View {
+/// The parent's half: every line of this game, oldest at the top, the newest in full at the bottom. It scrolls to each
+/// new line, and back up by hand. Build 31 showed only the last two and dropped them at the end, so a Weakness
+/// explanation was gone before Jordan could read it out ("I need time to be able to go back through the old
+/// instructions and read them out if things have moved on quickly").
+struct LogView: View {
     let lines: [Caption]
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if lines.count > 1 {
-                Text(lines[lines.count - 2].text)
-                    .font(.system(size: 18, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .lineLimit(1)
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(lines) { c in
+                        let newest = c.id == lines.last?.id
+                        Text(c.text)
+                            .font(.system(size: newest ? 24 : 20, weight: newest ? .semibold : .regular, design: .rounded))
+                            .foregroundStyle(.white.opacity(newest ? 1 : 0.6))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .id(c.id)
+                    }
+                }
+                .padding(.horizontal, 26).padding(.vertical, 14)
             }
-            if let c = lines.last {
-                Text(c.text)
-                    .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .lineLimit(3).minimumScaleFactor(0.6)
-                    .id(c.id)
-                    .transition(.opacity)
+            .onChange(of: lines.last?.id) { _, id in
+                guard let id else { return }
+                withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(id, anchor: .bottom) }
             }
+            .onAppear { if let id = lines.last?.id { proxy.scrollTo(id, anchor: .bottom) } }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .background(Color.black.opacity(0.3))
+    }
+}
+
+/// The parent's half during the battle: their Pokémon's HP and Energy, small (the big ones are on the child's half).
+struct ParentStatus: View {
+    let hp: Int
+    let energy: [String]
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "heart.fill").foregroundStyle(Color(red: 0.9, green: 0.15, blue: 0.2))
+            Text("\(hp)").contentTransition(.numericText()).foregroundStyle(.white)
+            Spacer()
+            ForEach(Array(energy.prefix(10).enumerated()), id: \.offset) { _, t in EnergyIcon(type: t, size: 30) }
+        }
+        .font(.system(size: 32, weight: .black, design: .rounded))
         .padding(.horizontal, 26)
-        .background(Color.black.opacity(0.35))
     }
 }
 

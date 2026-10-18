@@ -87,6 +87,9 @@ first real games teach, here, before building the next level.
   what the app was. One thing per screen, said in plain words. The parent talks, so the voice is off and the
   parent's half carries the sentences; the child can't read upside down, so his half has single words. The camera
   screen must not flicker (Apple's text boxes and tips off, one lookup per card). Letters for languages, not flags.
+- Level 1, build 31 (18 Oct, first real game, Heatran won): lines came faster than Jordan could read them out, and the
+  end screen dropped the Weakness explanation. The parent's half keeps every line of the game, scrollable, through
+  the end screen (`LogView`). Four Energy cards for every Pokémon looked like a rule: show exactly what's needed.
 
 ## Building and shipping
 

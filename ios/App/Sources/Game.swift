@@ -56,7 +56,7 @@ struct Pop: Equatable {
     var level = 1             // 1 practice battle; 2 and 3 aren't built yet
     var levelNote: String?    // said when a level that isn't built is tapped
     var pictures = 0          // bumped when card pictures that were missing have downloaded, to redraw
-    var captions: [Caption] = []                            // the last lines, written during the battle
+    var captions: [Caption] = []                            // this game's lines, written on the parent's half
 
     let voice = Voice()
     var mine: [Card] = Store.load() // your cards, added with CARDS (AddView): one box for both players
@@ -215,7 +215,7 @@ struct Pop: Equatable {
     func say(_ text: String) async {
         guard !text.isEmpty else { return }
         captionID += 1
-        withAnimation(.easeOut(duration: 0.2)) { captions = Array((captions + [Caption(id: captionID, text: text)]).suffix(2)) }
+        withAnimation(.easeOut(duration: 0.2)) { captions = Array((captions + [Caption(id: captionID, text: text)]).suffix(120)) }
         await voice.say(text)
     }
 
@@ -324,6 +324,7 @@ struct Pop: Equatable {
         sides = [Side(card: a), Side(card: b)]
         turns = 0
         winner = nil
+        captions = [] // a fresh list of lines for each game
         step = .coin
         speak(Say.flip(lang))
         let first = Int.random(in: 0...1)
@@ -555,6 +556,7 @@ struct Pop: Equatable {
         Sound.play("win")
         await pause(0.6)
         await say(Say.wins(lang, name(1 - k)))
+        note("log: \(captions.count) lines kept at the end") // the cloud Mac checks the end screen keeps them
     }
 
     // MARK: The coin

@@ -82,6 +82,8 @@ run over 4 -- -demo over -lang en -quiet NO
 run auto 2 2 2 3 4 6 -- -auto YES -fast YES -lang it -quiet NO
 run auto-en 25 -- -auto YES -fast YES -lang en -quiet NO
 run auto-2 25 -- -auto YES -fast YES -lang it -quiet NO
+# The end keeps the game's lines on the parent's half, to finish reading them out (build 31 dropped them)
+grep -qE "log: ([5-9]|[0-9]{2,}) lines kept" "$OUT/auto.log" || { echo "the end didn't keep the game's lines:"; grep "log:" "$OUT/auto.log"; exit 1; }
 # Kokoro on the simulator: how long it takes to make lines (the log's "kokoro:" lines; the iPad is slower)
 run voice 75 -- -voicetest YES -lang it -quiet NO
 # Adding cards (no camera on the simulator: the name search, and cards added the way the add screen does). Last, as
