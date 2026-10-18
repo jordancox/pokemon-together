@@ -41,12 +41,15 @@ shot() { xcrun simctl io "$UDID" screenshot "$OUT/$1.png" >/dev/null 2>&1; echo 
 # says how long it took, and SLOW when that's well over its waits.
 run() { # name, seconds before each shot…, launch arguments after --
   local name=$1; shift; local waits=(); while [ "$1" != "--" ]; do waits+=("$1"); shift; done; shift
-  local quiet=(-nokokoro YES); [[ " $* " == *" -voicetest "* ]] && quiet=()
-  local start=$SECONDS want=0
-  xcrun simctl launch --terminate-running-process --stdout="$OUT/$name.log" --stderr="$OUT/$name.log" "$UDID" "$ID" "$@" "${quiet[@]}" >/dev/null
+  # never an empty array: the Mac's bash is 3.2, where "${a[@]}" of an empty one fails under set -u (it did, 18 Oct)
+  local args=("$@"); [[ " $* " == *" -voicetest "* ]] || args+=(-nokokoro YES)
+  local start=$SECONDS want=0 slack=30
+  [ -n "${WARM:-}" ] || slack=150 # the first launch on a just-booted simulator takes about a minute and a half
+  WARM=1
+  xcrun simctl launch --terminate-running-process --stdout="$OUT/$name.log" --stderr="$OUT/$name.log" "$UDID" "$ID" "${args[@]}" >/dev/null
   local k=1; for w in "${waits[@]}"; do sleep "$w"; want=$((want + w)); shot "$name-$k"; k=$((k + 1)); done
   local took=$((SECONDS - start))
-  echo "  $name: ${took}s$([ $took -gt $((want + 30)) ] && echo " SLOW (waits ${want}s)")"
+  echo "  $name: ${took}s$([ $took -gt $((want + slack)) ] && echo " SLOW (waits ${want}s)")"
 }
 if [ "$KIND" = iphone ]; then
   xcrun simctl shutdown all || true # the iPad simulator is done: two at once on 3 cores is too many
