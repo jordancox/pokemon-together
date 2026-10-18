@@ -21,7 +21,7 @@ struct Side {
     var hp: Int { max(0, (card?.hp ?? 0) - damage) }
 }
 
-/// A line of the game, shown as text when the voice is off.
+/// A line of the game, written at the top of each half during the battle.
 struct Caption: Identifiable, Equatable {
     let id: Int
     let text: String
@@ -50,23 +50,23 @@ struct Pop: Equatable {
     var pop: Pop?
     var banner: Int?       // "your turn!" over that side
     var zoom = [false, false]
-    var quiet = UserDefaults.standard.bool(forKey: "quiet") // voice off: a parent reads the lines out instead
-    var captions: [Caption] = []                            // the last lines, shown when the voice is off
+    // The voice is off unless switched on (Jordan, 18 Oct 2026: "I'll be talking to him the whole time"); the parent's
+    // half has the lines written out.
+    var quiet = UserDefaults.standard.object(forKey: "quiet") == nil ? true : UserDefaults.standard.bool(forKey: "quiet")
+    var level = 1             // 1 practice battle; 2 and 3 aren't built yet
+    var levelNote: String?    // said when a level that isn't built is tapped
+    var captions: [Caption] = []                            // the last lines, written during the battle
 
     let voice = Voice()
-    var mine: [Card] = Store.load() // his cards, added on the iPad (AddView)
+    var mine: [Card] = Store.load() // your cards, added with CARDS (AddView): one box for both players
     var adding = false
-    /// The cards to pick from: only his, as they're added (Jordan, 18 Oct 2026: "it needs to be blank, and we just add
-    /// the ones that we have"). The sample cards only on the cloud Mac (-demo, -auto), for the screenshots.
+    /// The cards the Poké Ball chooses from: only yours (Jordan, 18 Oct 2026: "it needs to be blank, and we just add the
+    /// ones that we have"). The sample cards only on the cloud Mac (-demo, -auto), for the screenshots.
     var cards: [Card] {
-        let his = mine.filter(\.playable)
-        return (his.count >= 2 || !trial ? his : Card.all.filter(\.playable)).sorted { ($0.dex ?? 0) < ($1.dex ?? 0) }
+        let yours = mine.filter(\.playable)
+        return (yours.count >= 2 || !trial ? yours : Card.all.filter(\.playable)).sorted { ($0.dex ?? 0) < ($1.dex ?? 0) }
     }
-    /// His cards that can't play yet (Evolutions, no damaging attack): shown faded, so every card added shows up.
-    var later: [Card] { mine.filter { !$0.playable }.sorted { ($0.dex ?? 0) < ($1.dex ?? 0) } }
     private let trial = UserDefaults.standard.string(forKey: "demo") != nil || UserDefaults.standard.bool(forKey: "auto")
-    /// His cards are in the app (two or more that can play), so the voice can send them to find the cards in the pile.
-    var own: Bool { mine.filter(\.playable).count >= 2 }
     @ObservationIgnored var told = Set<String>() // the longer explanations, said once each time the app opens
     @ObservationIgnored var popID = 0
     @ObservationIgnored var captionID = 0
@@ -82,7 +82,10 @@ struct Pop: Equatable {
         voice.quiet = quiet
         note("\(cards.count) cards, language \(lang.rawValue)")
         let demo = UserDefaults.standard.string(forKey: "demo") ?? ""
-        if demo == "pick" { sides[0].card = card("sv03.5-025") ?? cards.first }
+        if demo == "ready", cards.count > 1 { // the Poké Ball has chosen
+            sides[0].card = card("sv03.5-025") ?? cards[0]
+            sides[1].card = card("sv03.5-004") ?? cards[1]
+        }
         if ["battle", "zoom", "over"].contains(demo), cards.count > 1 {
             sides[0] = Side(card: card("sv03.5-025") ?? cards[0], energy: ["Lightning", "Lightning"], damage: 20)
             sides[1] = Side(card: card("sv03.5-004") ?? cards[1], energy: ["Fire"], damage: 30)
@@ -104,7 +107,7 @@ struct Pop: Equatable {
             }
         }
         if UserDefaults.standard.bool(forKey: "auto") { Task { await autoplay() } }
-        else if step == .pick { speak(Say.pick(lang, cards.count)) }
+        else if step == .pick { speak(sides[0].card == nil ? Say.start(lang, cards.count) : Say.chosen(lang, name(0), name(1)) + " " + Say.ready(lang)) }
         warm()
         if UserDefaults.standard.bool(forKey: "voicetest") { Task { await voiceTest() } }
         if UserDefaults.standard.bool(forKey: "scantest") { Task { await scanTest() } }
@@ -115,9 +118,9 @@ struct Pop: Equatable {
     /// comes back on; and on the cloud Mac, `prerender`). Each Pokémon's own are made when it's added or chosen.
     func warm() {
         let l = lang, z = "ZZ" // a stand-in name: sentences with a Pokémon's name in them are left for warm(card)
-        var lines = [Say.pick(l, 0), Say.pick(l, 1), Say.pick(l, 2), Say.ready(l), Say.flip(l), Say.firstTurnRule(l), Say.canAttack(l),
+        var lines = [Say.start(l, 0), Say.start(l, 1), Say.start(l, 2), Say.ready(l), Say.flip(l), Say.firstTurnRule(l), Say.canAttack(l),
                      Say.notEnough(l), Say.oneEnergy(l), Say.energyFirst(l), Say.heads(l), Say.tails(l), Say.nothing(l),
-                     Say.coinTeach(l), Say.again(l), Say.language(l), Say.voiceOn(l), Say.chosen(l, z, z, true),
+                     Say.coinTeach(l), Say.again(l), Say.language(l), Say.voiceOn(l), Say.chosen(l, z, z),
                      Say.notEnoughTeach(l, z, 1), Say.canAttackTeach(l, z), Say.leftTeach(l, z, 60, 20, 40)]
         lines += ["Grass", "Fire", "Water", "Lightning", "Psychic", "Fighting", "Darkness", "Metal", "Colorless"].map { Say.turn(l, z, $0) }
         lines += stride(from: 10, through: 200, by: 10).map { Say.damage(l, $0) }
@@ -126,7 +129,7 @@ struct Pop: Equatable {
 
     func warm(_ c: Card, _ when: Kokoro.When = .soon) {
         let l = lang, n = c.name(l)
-        var lines = [Say.picked(l, n), Say.starts(l, n), Say.ko(l, n), Say.wins(l, n), Say.wait(l, n)]
+        var lines = [Say.starts(l, n), Say.ko(l, n), Say.wins(l, n), Say.wait(l, n)]
         lines += Set(c.moves.flatMap(\.cost) + [c.type]).sorted().map { Say.turn(l, n, $0) }
         lines += c.moves.map { Say.uses(l, n, $0.name(l)) }
         lines += stride(from: c.hp - 10, to: 0, by: -10).map { Say.left(l, n, $0) }
@@ -151,7 +154,7 @@ struct Pop: Equatable {
         note("voicetest: kokoro \(Kokoro.shared.on ? "on" : "off")")
         for l in [Lang.it, .en] {
             setLang(l)
-            await say(Say.chosen(l, "Pikachu", "Charmander", true))
+            await say(Say.chosen(l, "Pikachu", "Charmander"))
             await say(Say.turnFirst(l, "Pikachu", "Lightning"))
         }
         note("voicetest: done")
@@ -175,7 +178,7 @@ struct Pop: Equatable {
         lang = l
         voice.lang = l
         UserDefaults.standard.set(l.rawValue, forKey: "lang")
-        speak(Say.language(l) + (step == .pick ? " " + Say.pick(l, cards.count) : ""))
+        speak(Say.language(l) + (step == .pick && sides[0].card == nil ? " " + Say.start(l, cards.count) : ""))
         warm()
         for c in sides.compactMap(\.card) { warm(c) }
     }
@@ -221,28 +224,27 @@ struct Pop: Equatable {
 
     func closeAdding() {
         adding = false
-        if step == .pick { speak(Say.pick(lang, cards.count)) }
+        if step == .pick { sides = [Side(), Side()]; speak(Say.start(lang, cards.count)) } // the cards may have changed
     }
 
-    // MARK: Picking
+    // MARK: Choosing
 
-    /// Tapping a Pokémon on the pick screen: choosing it yourself instead.
-    func pick(_ s: Int, _ c: Card) {
+    func setLevel(_ n: Int) {
         guard step == .pick else { return }
-        sides[s].card = c
+        levelNote = n == 1 ? nil : Say.levelSoon(lang)
         Sound.play("pop")
-        warm(c)
-        speak(sides.allSatisfy { $0.card != nil } ? Say.chosen(lang, name(0), name(1), own) + " " + Say.ready(lang) : Say.picked(lang, c.name(lang)))
     }
 
-    /// Tapping one of his cards that can't play yet.
-    func notYet(_ c: Card) {
-        guard step == .pick else { return }
-        speak(Say.notYet(lang, c))
+    /// The Energy cards to put next to a Pokémon before the battle: four, of the types its strongest attack needs
+    /// (its own type for a Colorless cost).
+    func energyFor(_ c: Card) -> [String] {
+        let cost = (c.moves.max { $0.cost.count < $1.cost.count }?.cost ?? []).map { $0 == "Colorless" ? c.type : $0 }
+        let types = cost.isEmpty ? [c.type] : cost
+        return (0..<4).map { types[$0 % types.count] }
     }
 
-    /// The Poké Ball before both have a Pokémon: the app chooses for whoever hasn't. The second has about the same HP as
-    /// the first, so it's a fair fight.
+    /// The Poké Ball at the start: the app chooses a Pokémon for each player. The second has about the same HP as the
+    /// first, so it's a fair fight.
     func choose() {
         guard step == .pick, !busy, cards.count > 1 else { return }
         for s in [0, 1].shuffled() where sides[s].card == nil {
@@ -256,7 +258,7 @@ struct Pop: Equatable {
         Sound.play("pop")
         for c in sides.compactMap(\.card) { warm(c) }
         note("chose \(name(0)) \(sides[0].card?.hp ?? 0) HP against \(name(1)) \(sides[1].card?.hp ?? 0) HP")
-        speak(Say.chosen(lang, name(0), name(1), own) + " " + Say.ready(lang))
+        speak(Say.chosen(lang, name(0), name(1)) + " " + Say.ready(lang))
     }
 
     /// The Poké Ball in the middle: choose the Pokémon, start, say it again, or play again.
@@ -264,15 +266,21 @@ struct Pop: Equatable {
         switch step {
         case .pick:
             if sides.allSatisfy({ $0.card != nil }) { Task { await go() } }
-            else if cards.count < 2 { speak(Say.pick(lang, cards.count)) }
+            else if cards.count < 2 { speak(Say.start(lang, cards.count)) }
             else { choose() }
         case .over: again()
         case .coin, .battle: if !quiet { speak(voice.last) }
         }
     }
 
-    /// Holding the Poké Ball: back to picking.
+    /// Holding the Poké Ball: back to the start (from the battle, or to choose other Pokémon).
     func quit() {
+        if step == .pick, sides[0].card != nil {
+            sides = [Side(), Side()]
+            Sound.play("pop")
+            speak(Say.start(lang, cards.count))
+            return
+        }
         guard step == .battle, !busy else { return }
         again()
     }

@@ -1,74 +1,116 @@
 import SwiftUI
 import UIKit
 
-// One player's half, in its three moments: picking a Pokémon, the battle, and the end. All drawn at halfSize, with the
+// One player's half, in its three moments: the start (then this player's Pokémon), the battle, and the end. All drawn at halfSize, with the
 // player at the bottom edge and the middle of the table at the top.
 
-struct PickView: View {
+/// The two halves (Jordan, 18 Oct 2026): the parent's at the bottom, calm, with the instructions written out to read and
+/// pass on; the child's at the top, turned to face him, with pictures, numbers and single words only ("reading on his
+/// side upside down is impossible"). The voice is off unless switched on: the parent does the talking.
+let parentSide = 0, childSide = 1
+
+/// Before a battle. The parent's half: the level, then what to tap; once the Poké Ball has chosen, both Pokémon to find
+/// and the Energy cards to put next to each. The child's half: READY?, then his Pokémon, big.
+struct StartView: View {
     let game: Game
     let side: Int
-    private let columns = Array(repeating: GridItem(.fixed(122), spacing: 8), count: 4)
     var body: some View {
-        let chosen = game.sides[side].card
-        HStack(alignment: .top, spacing: 18) {
-            VStack(spacing: 12) {
-                ZStack {
-                    if let chosen { SpriteView(dex: chosen.dex, box: 170) }
-                    else { Text("?").font(.system(size: 120, weight: .black, design: .rounded)).foregroundStyle(.white.opacity(0.7)) }
+        Group {
+            if side == parentSide {
+                if game.sides[childSide].card != nil { parentChosen } else { parentIntro }
+            } else if let c = game.sides[side].card {
+                VStack(spacing: 14) {
+                    CardSlot(card: c, lang: game.lang).frame(width: 300, height: 419).onTapGesture { game.read(side) }
+                    Text(c.name(game.lang).uppercased()).font(.system(size: 56, weight: .black, design: .rounded))
+                        .lineLimit(1).minimumScaleFactor(0.5)
                 }
-                .frame(width: 250, height: 180)
-                CardSlot(card: chosen, lang: game.lang)
-                    .frame(width: 240, height: 335)
-                    .onTapGesture { game.read(side) }
-            }
-            .frame(width: 250)
-            ScrollView(showsIndicators: false) {
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(game.cards) { c in
-                        Button { game.pick(side, c) } label: { PickCell(card: c, lang: game.lang, on: chosen?.id == c.id) }
-                            .buttonStyle(.plain)
-                    }
-                    ForEach(game.later) { c in // his cards that can't play yet
-                        Button { game.notYet(c) } label: { PickCell(card: c, lang: game.lang, on: false).opacity(0.45) }
-                            .buttonStyle(.plain)
-                    }
-                    // Add his cards (the camera, or a name); it pulses until two can play
-                    Button { game.openAdding() } label: {
-                        Image(systemName: "plus").font(.system(size: 46, weight: .bold)).foregroundStyle(.black.opacity(0.6))
-                            .frame(width: 122, height: 124)
-                            .background(RoundedRectangle(cornerRadius: 18).fill(.white.opacity(game.cards.count < 2 ? 0.9 : 0.5)))
-                            .modifier(Pulse(on: game.cards.count < 2))
-                    }
-                    .buttonStyle(.plain)
+            } else {
+                VStack(spacing: 24) {
+                    Pokeball().frame(width: 190, height: 190)
+                    Text(Say.readyWord(game.lang)).font(.system(size: 80, weight: .black, design: .rounded))
                 }
-                .padding(.vertical, 18)
             }
-            .frame(width: 520)
         }
-        .padding(.top, 16)
-        .padding(.horizontal, 22)
-        .frame(width: halfSize.width, height: halfSize.height, alignment: .top)
+        .frame(width: halfSize.width, height: halfSize.height)
+        .foregroundStyle(.white)
+    }
+
+    private var parentIntro: some View {
+        let l = game.lang
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(Say.chooseLevel(l)).font(.system(size: 20, weight: .heavy, design: .rounded)).opacity(0.6)
+            ForEach(1...Say.levels, id: \.self) { n in
+                Button { game.setLevel(n) } label: { LevelRow(n: n, lang: l, on: game.level == n) }.buttonStyle(.plain)
+            }
+            Spacer(minLength: 8)
+            Text(game.levelNote ?? Say.start(l, game.cards.count))
+                .font(.system(size: 22, weight: .semibold, design: .rounded))
+                .foregroundStyle(game.levelNote == nil ? Color.white : .yellow)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(28)
+    }
+
+    private var parentChosen: some View {
+        let l = game.lang
+        return VStack(alignment: .leading, spacing: 16) {
+            ForEach([childSide, parentSide], id: \.self) { s in
+                if let c = game.sides[s].card {
+                    HStack(spacing: 20) {
+                        CardSlot(card: c, lang: l).frame(width: 110, height: 153).onTapGesture { game.read(s) }
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text((s == childSide ? Say.his(l) : Say.yours(l)) + ": " + c.name(l).uppercased())
+                                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                            HStack(spacing: 8) {
+                                ForEach(Array(game.energyFor(c).enumerated()), id: \.offset) { _, t in EnergyIcon(type: t, size: 44) }
+                            }
+                        }
+                    }
+                }
+            }
+            Text(Say.setUp(l)).font(.system(size: 24, weight: .semibold, design: .rounded))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(28)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-struct PickCell: View {
-    let card: Card
+/// A level on the parent's half: built, or not yet.
+struct LevelRow: View {
+    let n: Int
     let lang: Lang
     let on: Bool
     var body: some View {
-        VStack(spacing: 2) {
-            SpriteView(dex: card.dex, box: 84, still: true).frame(width: 100, height: 88)
-            Text(card.name(lang).uppercased())
-                .font(.system(size: 15, weight: .heavy, design: .rounded))
-                .lineLimit(1).minimumScaleFactor(0.6)
-                .foregroundStyle(.black)
-                .padding(.horizontal, 6)
+        let words = Say.level(lang, n)
+        HStack(spacing: 12) {
+            Text("\(n)").font(.system(size: 20, weight: .black, design: .rounded))
+                .frame(width: 32, height: 32)
+                .background(Circle().fill(.white.opacity(on ? 0.3 : 0.1)))
+            Text(words.0).font(.system(size: 21, weight: .heavy, design: .rounded))
+            Text(words.1 + (n == 1 ? "" : " · " + Say.notBuilt(lang)))
+                .font(.system(size: 17, weight: .medium, design: .rounded)).opacity(0.7)
+                .lineLimit(1).minimumScaleFactor(0.7)
+            Spacer(minLength: 0)
+            if on { Image(systemName: "checkmark").font(.system(size: 20, weight: .bold)) }
         }
-        .frame(width: 122, height: 124)
-        .background(RoundedRectangle(cornerRadius: 18).fill(.white.opacity(on ? 1 : 0.82)))
-        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(on ? Color.black : .clear, lineWidth: 5))
-        .overlay(alignment: .topTrailing) { EnergyIcon(type: card.type, size: 24).padding(6) }
-        .scaleEffect(on ? 1.05 : 1)
+        .padding(.horizontal, 10).frame(height: 40)
+        .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(on ? 0.16 : 0.04)))
+        .opacity(n == 1 ? 1 : 0.5)
+    }
+}
+
+/// What to do now, at the top of a half: next to the middle of the table, where the buttons are.
+struct Hint: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.system(size: 28, weight: .heavy, design: .rounded))
+            .foregroundStyle(.white)
+            .lineLimit(1).minimumScaleFactor(0.6)
+            .padding(.horizontal, 28).padding(.vertical, 12)
+            .background(Capsule().fill(.black.opacity(0.35)))
+            .padding(.horizontal, 30)
     }
 }
 
@@ -78,9 +120,11 @@ struct BattleView: View {
     var body: some View {
         let me = game.sides[side]
         let mine = game.step == .battle && game.turn == side
-        let arena: CGFloat = game.quiet ? 136 : 220
+        let isParent = side == parentSide
+        let arena: CGFloat = isParent ? 120 : 220
         VStack(spacing: 0) {
-            if game.quiet { Captions(lines: game.captions).frame(height: 84) }
+            // the parent's half: what's happening and what to do, written out to read and pass on
+            if isParent { Captions(lines: game.captions).frame(height: 100) }
             // By the middle of the table: HP, the Pokémon, its Energy
             HStack(spacing: 0) {
                 HPView(hp: me.hp, full: me.card?.hp ?? 0).frame(width: 250)
@@ -111,7 +155,7 @@ struct BattleView: View {
                     .frame(width: 240, height: 335)
                     .overlay(alignment: .topTrailing) { if me.damage > 0 { DamageBadge(n: me.damage) } }
                     .onTapGesture { game.read(side) }
-                Controls(game: game, side: side)
+                Controls(game: game, side: side, calm: isParent)
                     .opacity(mine ? 1 : 0.45)
             }
             .padding(.horizontal, 24)
@@ -119,7 +163,7 @@ struct BattleView: View {
         }
         .frame(width: halfSize.width, height: halfSize.height)
         .overlay {
-            if game.banner == side {
+            if game.banner == side && !isParent {
                 Text(Say.yourTurn(game.lang))
                     .font(.system(size: 64, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
@@ -136,6 +180,7 @@ struct BattleView: View {
 struct Controls: View {
     let game: Game
     let side: Int
+    var calm = false // the parent's: nothing pulses
     var body: some View {
         let me = game.sides[side]
         let mine = game.step == .battle && game.turn == side
@@ -155,7 +200,7 @@ struct Controls: View {
                 .background(RoundedRectangle(cornerRadius: 22).fill(.white.opacity(mine && !me.gaveEnergy ? 1 : 0.7)))
                 .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(mine && !me.gaveEnergy ? Color.yellow : .clear, lineWidth: 6))
             }
-            .modifier(Pulse(on: mine && !me.gaveEnergy))
+            .modifier(Pulse(on: !calm && mine && !me.gaveEnergy))
             ForEach(Array(moves.enumerated()), id: \.offset) { i, a in
                 Button { Task { await game.attack(side, i) } } label: {
                     AttackRow(attack: a, lang: game.lang, height: moves.count > 2 ? 62 : 78,
@@ -212,6 +257,21 @@ struct OverView: View {
     let side: Int
     var body: some View {
         let won = game.winner == side
+        if side == parentSide {
+            VStack(spacing: 24) {
+                Hint(text: Say.tapBallAgain(game.lang)).padding(.top, 22)
+                Spacer()
+                Text(Say.wins(game.lang, game.name(game.winner ?? 0)))
+                    .font(.system(size: 44, weight: .black, design: .rounded)).foregroundStyle(.white)
+                Spacer()
+            }
+            .frame(width: halfSize.width, height: halfSize.height)
+        } else {
+            child(won)
+        }
+    }
+
+    private func child(_ won: Bool) -> some View {
         ZStack {
             if won { Confetti() }
             VStack(spacing: 20) {
@@ -233,16 +293,22 @@ struct OverView: View {
     }
 }
 
-/// When the voice is off: the latest line, for a parent to read out.
+/// The parent's half: the last two lines of the game, the newest in full, to read and pass on.
 struct Captions: View {
     let lines: [Caption]
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 4) {
+            if lines.count > 1 {
+                Text(lines[lines.count - 2].text)
+                    .font(.system(size: 18, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .lineLimit(1)
+            }
             if let c = lines.last {
                 Text(c.text)
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white)
-                    .lineLimit(3).minimumScaleFactor(0.7)
+                    .lineLimit(3).minimumScaleFactor(0.6)
                     .id(c.id)
                     .transition(.opacity)
             }
@@ -344,7 +410,7 @@ struct CardSlot: View {
 struct SpriteView: View {
     let dex: Int?
     var box: CGFloat = 180
-    var still = false // the first frame only: a screen full of moving Pokémon is too much (the pick screen)
+    var still = false // the first frame only, where a screen of moving Pokémon would be too much (the add screen)
     var body: some View {
         if let img = Art.sprite(dex) {
             let s = min(box / max(img.size.width, img.size.height, 1), 3.2)

@@ -36,11 +36,11 @@ struct Half: View {
     let side: Int
     var body: some View {
         ZStack { // the colour and the zoomed card fill the whole half, past the scaled part on a phone
-            Backdrop(type: game.sides[side].card?.type, lit: game.step == .battle && game.turn == side)
+            Backdrop(type: game.sides[side].card?.type, lit: game.step == .battle && game.turn == side, calm: side == parentSide)
             Fit(size: halfSize) {
                 ZStack {
                     switch game.step {
-                    case .pick: PickView(game: game, side: side)
+                    case .pick: StartView(game: game, side: side)
                     case .coin, .battle: BattleView(game: game, side: side)
                     case .over: OverView(game: game, side: side)
                     }
@@ -57,25 +57,34 @@ struct Half: View {
 }
 
 /// The strip across the middle: the Poké Ball (choose the Pokémon, start, say it again, play again; hold it to stop a
-/// game), the languages
-/// and the voice switch.
+/// game or choose again), the languages, CARDS (your cards, before a battle) and the voice switch.
 struct Seam: View {
     let game: Game
     var body: some View {
         ZStack {
             Rectangle().fill(Color(white: 0.07))
-            HStack(spacing: 18) {
+            HStack(spacing: 10) { // fits beside the Poké Ball on an iPhone too (393 points)
                 language(.en, "EN") // letters, never flags (Jordan, 18 Oct 2026: "I hate flags for language. I'm Canadian")
                 language(.it, "IT")
                 Spacer()
+                Button { game.openAdding() } label: {
+                    Text(Say.cardsWord(game.lang))
+                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10).frame(height: 34)
+                        .background(Capsule().fill(.white.opacity(game.cards.count < 2 ? 0.35 : 0.15)))
+                        .modifier(Pulse(on: game.cards.count < 2 && game.step == .pick))
+                }
+                .opacity(game.step == .pick ? 1 : 0.25)
+                .disabled(game.step != .pick)
                 Button { game.setQuiet(!game.quiet) } label: {
                     Image(systemName: game.quiet ? "speaker.slash.fill" : "speaker.wave.2.fill")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(.white.opacity(game.quiet ? 0.5 : 0.9))
-                        .frame(width: 56, height: 44)
+                        .frame(width: 44, height: 44)
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 16)
             Pokeball(top: Kind.color(game.sides[1].card?.type), bottom: Kind.color(game.sides[0].card?.type))
                 .frame(width: 96, height: 96)
                 .modifier(Pulse(on: (game.step == .pick && game.cards.count > 1) || game.step == .over))
@@ -88,7 +97,7 @@ struct Seam: View {
     private func language(_ l: Lang, _ code: String) -> some View {
         Button { game.setLang(l) } label: {
             Text(code).font(.system(size: 22, weight: .heavy, design: .rounded))
-                .foregroundStyle(.white.opacity(game.lang == l ? 1 : 0.35)).frame(width: 48, height: 44)
+                .foregroundStyle(.white.opacity(game.lang == l ? 1 : 0.35)).frame(width: 44, height: 44)
         }
     }
 }
@@ -97,8 +106,20 @@ struct Seam: View {
 struct Backdrop: View {
     let type: String?
     let lit: Bool
+    var calm = false // the parent's half: dark grey, and a still edge on its turn
     var body: some View {
         let c = Kind.color(type)
+        if calm {
+            ZStack {
+                Color(white: 0.14)
+                if lit { RoundedRectangle(cornerRadius: 26).strokeBorder(.white.opacity(0.5), lineWidth: 4) }
+            }
+        } else {
+            colourful(c)
+        }
+    }
+
+    private func colourful(_ c: Color) -> some View {
         ZStack {
             LinearGradient(colors: [c, c.opacity(0.55)], startPoint: .top, endPoint: .bottom)
             if lit {

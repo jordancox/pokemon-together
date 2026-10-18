@@ -10,32 +10,62 @@ enum Say {
     static func yourTurn(_ l: Lang) -> String { t(l, "TOCCA A TE!", "YOUR TURN!") }
     static func youWin(_ l: Lang) -> String { t(l, "HAI VINTO!", "YOU WIN!") }
     static func goodGame(_ l: Lang) -> String { t(l, "BRAVO!", "WELL PLAYED!") }
+    // The start (Jordan, 18 Oct 2026, on build 20's card grid on both halves: "I'm 45 and can't parse what this is").
+    // The child's half: one word. The parent's: the level, and what to do.
+    static func readyWord(_ l: Lang) -> String { t(l, "PRONTO?", "READY?") }
+    static func chooseLevel(_ l: Lang) -> String { t(l, "LIVELLO", "LEVEL") }
+    /// The levels, laddered up by hand as you learn (Jordan, 18 Oct: "Practice battle… up to like level 5? level 10? I
+    /// don't know how many steps till we master it"). Each adds one thing from the real game; 8 is all of it.
+    static let levels = 8
+    static func level(_ l: Lang, _ n: Int) -> (String, String) {
+        switch n {
+        case 1: return (t(l, "Battaglia di prova", "Practice battle"), t(l, "un Pokémon a testa: Energia e attacchi", "one Pokémon each: Energy and attacks"))
+        case 2: return (t(l, "Squadra", "Team"), t(l, "tre Pokémon a testa: quando uno va KO, entra il prossimo", "three Pokémon each: when one is knocked out, the next comes in"))
+        case 3: return (t(l, "Ritirata", "Retreat"), t(l, "cambiare il Pokémon che combatte", "swap the Pokémon that's fighting"))
+        case 4: return (t(l, "Evoluzioni", "Evolution"), t(l, "i Pokémon crescono durante la partita", "Pokémon evolve during the game"))
+        case 5: return (t(l, "La mano", "Your hand"), t(l, "un mazzo a testa: si pesca e si giocano le carte", "a deck each: draw and play cards"))
+        case 6: return (t(l, "Carte premio", "Prize cards"), t(l, "il modo vero di vincere", "the real way to win"))
+        case 7: return (t(l, "Allenatori", "Trainers"), t(l, "strumenti e aiutanti", "items and helpers"))
+        default: return (t(l, "Partita vera", "Full game"), t(l, "stati speciali, abilità: tutte le regole", "special conditions, abilities: all the rules"))
+        }
+    }
+    static func notBuilt(_ l: Lang) -> String { t(l, "non ancora pronto", "not built yet") }
+    static func levelSoon(_ l: Lang) -> String {
+        t(l, "Questo livello non è ancora pronto: per ora, la battaglia di prova.", "That level isn't built yet: for now, the practice battle.")
+    }
+    static func his(_ l: Lang) -> String { t(l, "IL SUO", "HIS") }
+    static func yours(_ l: Lang) -> String { t(l, "IL TUO", "YOURS") }
+    static func setUp(_ l: Lang) -> String {
+        t(l, "Trovate le due carte. Ognuno mette la sua davanti a sé, con accanto le carte Energia qui sopra (quelle con un solo grande simbolo; se non le avete, vanno bene dei gettoni). Poi toccate la Poké Ball.",
+          "Find both cards. Each of you puts yours in front of you, with the Energy cards shown here next to it (the ones with one big symbol; coins will do if you don't have them). Then tap the Poké Ball.")
+    }
+    static func tapBallAgain(_ l: Lang) -> String { t(l, "↑  TOCCA LA POKÉ BALL PER RIGIOCARE", "↑  TAP THE POKÉ BALL TO PLAY AGAIN") }
+    static func cardsWord(_ l: Lang) -> String { t(l, "CARTE", "CARDS") }
 
     // Spoken
     static func voiceOn(_ l: Lang) -> String { t(l, "Eccomi!", "I'm back!") }
     static func language(_ l: Lang) -> String { t(l, "Italiano!", "English!") }
-    /// The app chooses the Pokémon (the Poké Ball), so nobody needs to know which cards are good; `n` is how many of
-    /// his cards can play.
-    static func pick(_ l: Lang, _ n: Int) -> String {
-        n == 0 ? t(l, "Toccate il più e aggiungete le vostre carte Pokémon, una alla volta.", "Tap the plus and add your Pokémon cards, one at a time.")
-            : n == 1 ? t(l, "Aggiungete almeno un altro Pokémon: ne serve uno a testa.", "Add at least one more Pokémon: you need one each.")
-            : t(l, "Toccate la Poké Ball: scelgo io un Pokémon per ognuno.", "Tap the Poké Ball and I'll choose a Pokémon for each of you.")
+    /// What this is and what to do first; `n` is how many of your cards can play. The app chooses the Pokémon (the
+    /// Poké Ball), so nobody needs to know which cards are good.
+    static func start(_ l: Lang, _ n: Int) -> String {
+        n == 0 ? t(l, "Prima aggiungete le vostre carte Pokémon: toccate CARTE, in mezzo.", "First, add your Pokémon cards: tap CARDS, in the middle.")
+            : n == 1 ? t(l, "Aggiungete almeno un altro Pokémon: ne serve uno a testa. Toccate CARTE.", "Add at least one more Pokémon: you need one each. Tap CARDS.")
+            : t(l, "Battaglia di prova! Un Pokémon a testa. A turno, si mette un'Energia e si attacca. Vince chi manda KO l'altro Pokémon. Toccate la Poké Ball: scelgo io un Pokémon per ognuno.",
+                "Practice battle! One Pokémon each. Take turns: put on an Energy card, then attack. Knock out the other Pokémon to win. Tap the Poké Ball and I'll choose a Pokémon for each of you.")
     }
-    /// One of his cards that can't play yet, tapped on the pick screen.
+    /// One of your cards that can't play yet, said when it's added.
     static func notYet(_ l: Lang, _ c: Card) -> String {
         let n = c.name(l)
         return c.stage != "Basic" ? t(l, "\(n) è un'evoluzione: entra in gioco in un livello più avanti.", "\(n) is an Evolution card: it joins the game in a later level.")
             : t(l, "\(n) non ha un attacco che fa danni: entra in gioco in un livello più avanti.", "\(n) has no attack that does damage: it joins the game in a later level.")
     }
-    static func picked(_ l: Lang, _ n: String) -> String { "\(n)!" }
-    static func chosen(_ l: Lang, _ a: String, _ b: String, _ own: Bool) -> String {
-        t(l, "\(a) contro \(b)!", "\(a) against \(b)!") + (own ? " " + t(l,
-          "Ognuno cerca la carta che vede sulla sua metà dello schermo e la mette sul tavolo, davanti a sé.",
-          "Each of you, find the card on your half of the screen and put it on the table in front of you.") : "")
+    static func chosen(_ l: Lang, _ a: String, _ b: String) -> String {
+        t(l, "\(a) contro \(b)! Ognuno cerca la carta che vede sulla sua metà dello schermo e la mette davanti a sé.",
+          "\(a) against \(b)! Each of you, find the card on your half of the screen and put it in front of you.")
     }
     static func ready(_ l: Lang) -> String {
-        t(l, "Ora le carte Energia: sono quelle con un solo grande simbolo. Ognuno ne mette qualcuna accanto al suo Pokémon. Se non ne avete, vanno bene dei gettoni. Pronti? Toccate la Poké Ball!",
-          "Now the Energy cards: they're the ones with just one big symbol. Each of you, put a few next to your Pokémon. No Energy cards? Coins will do. Ready? Tap the Poké Ball!")
+        t(l, "Accanto mettete le carte Energia che vedete: sono quelle con un solo grande simbolo. Se non le avete, vanno bene dei gettoni. Pronti? Toccate la Poké Ball!",
+          "Next to it, put the Energy cards you see: they're the ones with just one big symbol. No Energy cards? Coins will do. Ready? Tap the Poké Ball!")
     }
     /// "un'Energia Lampo" / "a Lightning Energy card"; any Energy for a Colorless cost
     static func energyCard(_ l: Lang, _ type: String) -> String {
@@ -131,16 +161,16 @@ enum Say {
     static func coinTeach(_ l: Lang) -> String { t(l, "Questo attacco dice di lanciare una moneta. La lancio io!", "This attack says to flip a coin. I'll flip it!") }
     static func wins(_ l: Lang, _ n: String) -> String { t(l, "Vince \(n)! Bella partita!", "\(n) wins! Great game!") }
     static func again(_ l: Lang) -> String {
-        t(l, "Un'altra partita? Rimettete le carte nel mucchio, poi toccate la Poké Ball: scelgo io i nuovi Pokémon.",
-          "Another game? Put the cards back in the pile, then tap the Poké Ball: I'll choose new Pokémon.")
+        t(l, "Un'altra partita? Rimettete le carte con le altre, poi toccate la Poké Ball: scelgo io i nuovi Pokémon.",
+          "Another game? Put the cards back with the others, then tap the Poké Ball: I'll choose new Pokémon.")
     }
     // The add screen, for a grown-up
     /// One pile for both players, whichever half's + opened it (Jordan, 18 Oct: "why does it say 'his cards' even when
     /// I'm adding the ones on the bottom")
     static func yourCards(_ l: Lang) -> String { t(l, "Le vostre carte", "Your cards") }
     static func addHint(_ l: Lang) -> String {
-        t(l, "Inquadra il codice in basso a sinistra di ogni carta Pokémon (per esempio SVI 038/198), oppure scrivi il numero (38/198) o il nome. Aggiungile tutte: l'app sa quali possono giocare.",
-          "Point the camera at the code at the bottom left of each Pokémon card (like SVI 038/198), or type the number (38/198) or the name. Add them all: the app knows which ones can play.")
+        t(l, "Le carte Pokémon che avete. A ogni partita l'app ne sceglie due di forza simile, una a testa. Inquadra il codice in basso a sinistra di ogni carta (per esempio SVI 038/198), oppure scrivi il numero (38/198) o il nome.",
+          "The Pokémon cards you have. Each game, the app picks two of about the same strength, one each. Point the camera at the code at the bottom left of each card (like SVI 038/198), or type the number (38/198) or the name.")
     }
     static func typeName(_ l: Lang) -> String { t(l, "Numero (38/198) o nome", "Number (38/198) or name") }
     static func searchWord(_ l: Lang) -> String { t(l, "Cerca", "Search") }

@@ -57,21 +57,23 @@ if [ "$KIND" = iphone ]; then
   xcrun simctl bootstatus "$UDID" -b >/dev/null
   xcrun simctl install "$UDID" "$APP"
   run phone-empty 5 -- -lang it -quiet NO
-  run phone-pick 5 -- -demo pick -lang it -quiet NO
+  run phone-start 5 -- -demo start -lang en
+  run phone-ready 5 -- -demo ready -lang it
   run phone-battle 5 -- -demo battle -lang it -quiet NO
   run phone-quiet 4 -- -demo battle -lang en -quiet YES
   run phone-zoom 4 -- -demo zoom -lang it -quiet NO
   run phone-over 4 -- -demo over -lang en -quiet NO
   run phone-auto 2 3 4 -- -auto YES -fast YES -lang it -quiet NO
   run phone-add-search 10 -- -demo add -query pikachu -lang it
-  run phone-added 15 -- -add sv01-038,sv01-036,me01-001,sv01-037 -demo pick -lang it -quiet NO
+  run phone-added 15 -- -add sv01-038,sv01-036,me01-001,sv01-037 -demo start -lang it
   run phone-add-list 6 -- -demo add -lang en
   xcrun simctl terminate "$UDID" "$ID" || true
   xcrun simctl shutdown "$UDID" || true
   exit 0
 fi
 run empty 5 -- -lang it -quiet NO # a new iPad: none of his cards yet
-run pick 5 -- -demo pick -lang it -quiet NO
+run start 5 -- -demo start -lang en # the sample cards: the levels and the Poké Ball
+run ready 5 -- -demo ready -lang it # the Poké Ball has chosen
 run battle 5 -- -demo battle -lang it -quiet NO
 run battle-en 4 -- -demo battle -lang en -quiet NO
 run quiet 4 -- -demo battle -lang it -quiet YES
@@ -93,6 +95,6 @@ run add-number 10 -- -demo add -query 38/198 -lang it
 run add-camera 10 -- -demo add -query "HP 60 LA SI 038/198" -lang it # as the camera reads a card: not the old sets HP, LA, SI
 run add-code 10 -- -demo add -query "G SVIIT 038/198" -lang en
 run add-name 10 -- -demo add -query "pikachu 25" -lang en
-run added 15 -- -add sv01-038,sv01-036,me01-001,sv01-037 -demo pick -lang it -quiet NO
+run added 15 -- -add sv01-038,sv01-036,me01-001,sv01-037 -demo start -lang it
 run add-list 6 -- -demo add -lang en
 xcrun simctl terminate "$UDID" "$ID" || true

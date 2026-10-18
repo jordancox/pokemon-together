@@ -1,14 +1,17 @@
 # Insieme
 
-An iPad (or iPhone) helper for a parent and a child learning the Pokémon Trading Card Game together, playing with the child's
-own cards on the table, in Italian or English. The iPad lies flat between the two players, and each gets half of the
-screen. The app knows the cards in the collection and chooses a fair pair: each player finds the card shown on their half
-and puts it in front of them. A voice then runs the game, assuming nobody knows a single rule. It says whose turn it is and what to do with the cards ("put a Lightning
-Energy card on Pikachu"). It explains each part of a card the first time it matters (HP, the Energy an attack needs,
-damage, Weakness), and it does the damage maths and keeps count. On screen there are only a few big words in capitals
-and the numbers. With the voice switched off, the same lines show as text for the parent to read aloud.
+An iPad (or iPhone) helper for a parent and a child learning the Pokémon Trading Card Game together, playing with
+their own cards on the table, in Italian or English. The iPad lies flat between the two players. The parent's half
+(the bottom) is calm and has the instructions written out, assuming nobody knows a single rule: whose turn it is,
+what to do with the cards ("put a Lightning Energy card under Pikachu's card"), and each part of a card the first time
+it matters (HP, the Energy an attack needs, damage, Weakness). The child's half (the top, facing the child) has
+pictures, numbers and single words. The app knows your cards and chooses a fair pair, does the damage maths and keeps
+count. A voice can read the lines aloud, but it's off to start with: the parent does the talking.
 
-The voice is [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) (Apache 2.0), run on the iPad itself by
+The game is learned in levels, each adding one thing from the real game: 1 Practice battle, 2 Team, 3 Retreat,
+4 Evolution, 5 Your hand, 6 Prize cards, 7 Trainers, 8 Full game. Level 1 is built so far.
+
+The voice, when on, is [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) (Apache 2.0), run on the iPad itself by
 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache 2.0), which uses espeak-ng to sound out the words. The
 iPad's own voice takes over if Kokoro can't run.
 
@@ -16,11 +19,11 @@ iPad's own voice takes over if Kokoro can't run.
 Each turn you put one Energy card on your Pokémon, then attack or tap DONE. Weakness doubles the damage, Resistance
 takes some off, and the first Pokémon knocked out loses. It plays each attack's printed damage plus the common effects
 (coin flips, healing, extra Energy, self-damage, protection). Bench, drawing cards, prize cards, Evolution and Trainers
-come in later levels.
+come in the later levels.
 
 ## The cards
 
-His cards are added in the app. The + on the pick screen opens the camera, which reads the code printed at the bottom
+Your cards are added in the app. CARDS, in the middle, opens the camera, which reads the code printed at the bottom
 left of a card ("SVI 038/198"), or you can type a name. The card comes from TCGdex in Italian and English and is saved
 on the iPad.
 
