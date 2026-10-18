@@ -15,6 +15,16 @@ xcodebuild archive -project ios/Insieme.xcodeproj -scheme Insieme -configuration
   DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic CURRENT_PROJECT_VERSION="$BUILD" "${AUTH[@]}" \
   > ios/build/archive.log 2>&1 || { grep -E "error|Error" ios/build/archive.log | head -40; exit 1; }
 echo "archived, build $BUILD"
+# sherpa-onnx's static frameworks (onnxruntime, SherpaOnnxC) get copied into the app although their code is already
+# linked into it, and Apple threw build 12 away for it (ITMS-90208: "onnxruntime.framework does not support the
+# minimum OS Version"). Take out every framework the app doesn't load; the export signs the app again.
+APP=ios/build/Insieme.xcarchive/Products/Applications/Insieme.app
+for f in "$APP"/Frameworks/*.framework; do
+  [ -e "$f" ] || continue
+  n=$(basename "$f" .framework)
+  if otool -L "$APP/Insieme" | grep -q "/$n.framework/"; then echo "loaded, kept: $n.framework"
+  else echo "not loaded, taken out: $n.framework ($(file -b "$f/$n" | head -c 80))"; rm -rf "$f"; fi
+done
 cat > ios/build/export.plist <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
