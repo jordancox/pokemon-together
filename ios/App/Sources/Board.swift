@@ -65,8 +65,8 @@ struct Seam: View {
         ZStack {
             Rectangle().fill(Color(white: 0.07))
             HStack(spacing: 18) {
-                flag(.it, "🇮🇹")
-                flag(.en, "🇬🇧")
+                language(.en, "EN") // letters, never flags (Jordan, 18 Oct 2026: "I hate flags for language. I'm Canadian")
+                language(.it, "IT")
                 Spacer()
                 Button { game.setQuiet(!game.quiet) } label: {
                     Image(systemName: game.quiet ? "speaker.slash.fill" : "speaker.wave.2.fill")
@@ -85,9 +85,10 @@ struct Seam: View {
         }
     }
 
-    private func flag(_ l: Lang, _ emoji: String) -> some View {
+    private func language(_ l: Lang, _ code: String) -> some View {
         Button { game.setLang(l) } label: {
-            Text(emoji).font(.system(size: 30)).opacity(game.lang == l ? 1 : 0.35).frame(width: 48, height: 44)
+            Text(code).font(.system(size: 22, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white.opacity(game.lang == l ? 1 : 0.35)).frame(width: 48, height: 44)
         }
     }
 }
