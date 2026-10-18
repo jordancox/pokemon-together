@@ -55,6 +55,7 @@ struct Pop: Equatable {
     var quiet = UserDefaults.standard.object(forKey: "quiet") == nil ? true : UserDefaults.standard.bool(forKey: "quiet")
     var level = 1             // 1 practice battle; 2 and 3 aren't built yet
     var levelNote: String?    // said when a level that isn't built is tapped
+    var pictures = 0          // bumped when card pictures that were missing have downloaded, to redraw
     var captions: [Caption] = []                            // the last lines, written during the battle
 
     let voice = Voice()
@@ -101,7 +102,7 @@ struct Pop: Equatable {
                 for id in ids.split(separator: ",") {
                     if case .ok(let c) = await TCGdex.fetch(String(id)) {
                         add(c)
-                        note("added \(c.id) \(c.name.en)/\(c.name.it) \(c.stage ?? "") \(c.hp) HP, " + c.attacks.map { "\($0.name.en) \($0.damage)\($0.mod ?? "") \($0.fx?.kind ?? "-")" }.joined(separator: "; "))
+                        note("added \(c.id) picture \(Art.missing(c).isEmpty ? "ok" : "MISSING") \(c.name.en)/\(c.name.it) \(c.stage ?? "") \(c.hp) HP, " + c.attacks.map { "\($0.name.en) \($0.damage)\($0.mod ?? "") \($0.fx?.kind ?? "-")" }.joined(separator: "; "))
                     } else { note("could not add \(id)") }
                 }
             }
@@ -111,6 +112,11 @@ struct Pop: Equatable {
         warm()
         if UserDefaults.standard.bool(forKey: "voicetest") { Task { await voiceTest() } }
         if UserDefaults.standard.bool(forKey: "scantest") { Task { await scanTest() } }
+        if let id = UserDefaults.standard.string(forKey: "breakpicture"), let c = mine.first(where: { $0.id == id }) {
+            for file in c.img.values { try? FileManager.default.removeItem(at: Store.docs.appendingPathComponent("Cards/" + file)) }
+            note("breakpicture: removed \(id)'s pictures") // the cloud Mac: as if their download had failed
+        }
+        Task { await repairPictures() }
         if UserDefaults.standard.bool(forKey: "prerender") { Task { await prerender() } }
     }
 
@@ -129,7 +135,7 @@ struct Pop: Equatable {
 
     func warm(_ c: Card, _ when: Kokoro.When = .soon) {
         let l = lang, n = c.name(l)
-        var lines = [Say.starts(l, n), Say.ko(l, n), Say.wins(l, n), Say.wait(l, n)]
+        var lines = [Say.starts(l, n), Say.allEnergy(l, n), Say.ko(l, n), Say.wins(l, n), Say.wait(l, n)]
         lines += Set(c.moves.flatMap(\.cost) + [c.type]).sorted().map { Say.turn(l, n, $0) }
         lines += c.moves.map { Say.uses(l, n, $0.name(l)) }
         lines += stride(from: c.hp - 10, to: 0, by: -10).map { Say.left(l, n, $0) }
@@ -172,6 +178,16 @@ struct Pop: Equatable {
         }
         while adder.busy { await pause(0.1) }
         note("scantest: \(adder.lookups) lookup\(adder.lookups == 1 ? "" : "s"), found \(adder.found.map(\.id))")
+    }
+
+    /// Card pictures that didn't download when the card was added: tried again each time the app opens.
+    func repairPictures() async {
+        let broken = mine.filter { !Art.missing($0).isEmpty }
+        guard !broken.isEmpty else { return }
+        var fixed = 0
+        for c in broken where await TCGdex.repair(c) { fixed += 1 }
+        note("pictures: \(broken.count) cards missing one, \(fixed) repaired")
+        if fixed > 0 { pictures += 1 }
     }
 
     func setLang(_ l: Lang) {
@@ -235,12 +251,20 @@ struct Pop: Equatable {
         Sound.play("pop")
     }
 
-    /// The Energy cards to put next to a Pokémon before the battle: four, of the types its strongest attack needs
-    /// (its own type for a Colorless cost).
+    /// The Energy cards to put next to a Pokémon before the battle: exactly what its strongest attack needs (its own
+    /// type for a Colorless cost). Build 29 showed four for every Pokémon, which looked like a rule (Jordan: "why are
+    /// there four energy cards here").
     func energyFor(_ c: Card) -> [String] {
-        let cost = (c.moves.max { $0.cost.count < $1.cost.count }?.cost ?? []).map { $0 == "Colorless" ? c.type : $0 }
-        let types = cost.isEmpty ? [c.type] : cost
-        return (0..<4).map { types[$0 % types.count] }
+        let cost = (strongest(c)?.cost ?? []).map { $0 == "Colorless" ? c.type : $0 }
+        return cost.isEmpty ? [c.type] : cost
+    }
+
+    func strongest(_ c: Card) -> Attack? { c.moves.max { $0.cost.count < $1.cost.count } }
+
+    /// Enough Energy for its strongest attack: no more ENERGY step, straight to attacking.
+    func hasAll(_ s: Int) -> Bool {
+        guard let a = sides[s].card.flatMap(strongest) else { return true }
+        return canPay(a.cost, sides[s].energy)
     }
 
     /// The Poké Ball at the start: the app chooses a Pokémon for each player. The second has about the same HP as the
@@ -327,6 +351,11 @@ struct Pop: Equatable {
             await pause(1.6)
             if banner == s { withAnimation { banner = nil } }
         }
+        if hasAll(s) { // nothing left to put on: attack (or DONE if it can't this turn)
+            sides[s].gaveEnergy = true
+            await say(sides[s].locked ? Say.locked(lang, name(s)) : Say.allEnergy(lang, name(s)))
+            return
+        }
         let e = nextEnergy(s)
         if told.insert("energy").inserted { await say(Say.turnFirst(lang, name(s), e)) }
         else { await say(Say.turn(lang, name(s), e)) }
@@ -335,7 +364,7 @@ struct Pop: Equatable {
     func giveEnergy(_ s: Int) async {
         guard step == .battle, !busy else { return }
         guard s == turn else { await say(Say.wait(lang, name(turn))); return }
-        guard !sides[s].gaveEnergy else { await say(Say.oneEnergy(lang)); return }
+        guard !sides[s].gaveEnergy else { await say(hasAll(s) ? Say.allEnergy(lang, name(s)) : Say.oneEnergy(lang)); return }
         let t = nextEnergy(s)
         withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
             sides[s].energy.append(t)

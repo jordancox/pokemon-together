@@ -97,4 +97,10 @@ run add-code 10 -- -demo add -query "G SVIIT 038/198" -lang en
 run add-name 10 -- -demo add -query "pikachu 25" -lang en
 run added 15 -- -add sv01-038,sv01-036,me01-001,sv01-037 -demo start -lang it
 run add-list 6 -- -demo add -lang en
+# Card pictures: every added card has its picture, and one that's gone is downloaded again when the app opens (Yanma's
+# didn't download on Jordan's iPad, 18 Oct, and nothing said so)
+! grep -h "^\[insieme\] added .* picture MISSING" "$OUT/added.log" || { echo "a card was added without its picture"; exit 1; }
+run repair 12 -- -breakpicture sv01-038 -demo start -lang en
+grep -q "pictures: 1 cards missing one, 1 repaired" "$OUT/repair.log" || { echo "a missing picture wasn't downloaded again:"; grep -E "breakpicture|pictures:" "$OUT/repair.log"; exit 1; }
+grep -hE "breakpicture|pictures:" "$OUT/repair.log"
 xcrun simctl terminate "$UDID" "$ID" || true

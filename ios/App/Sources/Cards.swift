@@ -104,14 +104,26 @@ enum Art {
     private static var sprites: [Int: UIImage] = [:]
     private static let root = Bundle.main.resourceURL!
 
-    /// The card's picture in that language, or in the other one.
+    /// The card's picture in that language, or in the other one (one of the two may not have downloaded).
     static func card(_ c: Card, _ l: Lang) -> UIImage? {
-        guard let file = c.img[l.rawValue] ?? c.img["en"] ?? c.img["it"] else { return nil }
-        if let i = cards[file] { return i }
-        let i = UIImage(contentsOfFile: Store.docs.appendingPathComponent("Cards/" + file).path) // added on the iPad
-            ?? UIImage(contentsOfFile: root.appendingPathComponent("Cards/" + file).path)
-        cards[file] = i
-        return i
+        for file in [c.img[l.rawValue], c.img["en"], c.img["it"]].compactMap({ $0 }) {
+            if let i = cards[file] { return i }
+            if let i = UIImage(contentsOfFile: Store.docs.appendingPathComponent("Cards/" + file).path) // added on the iPad
+                ?? UIImage(contentsOfFile: root.appendingPathComponent("Cards/" + file).path) {
+                cards[file] = i
+                return i
+            }
+        }
+        return nil
+    }
+
+    /// The picture files this card should have that aren't there: a download that failed when it was added.
+    static func missing(_ c: Card) -> [String: String] {
+        let fm = FileManager.default
+        return c.img.filter { _, file in
+            !fm.fileExists(atPath: Store.docs.appendingPathComponent("Cards/" + file).path)
+                && !fm.fileExists(atPath: root.appendingPathComponent("Cards/" + file).path)
+        }
     }
 
     /// The Pokémon's sprite, animated if it's a GIF. Its size is in the sprite's own pixels.

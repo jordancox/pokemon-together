@@ -214,6 +214,16 @@ enum TCGdex {
         return named.isEmpty ? found : named
     }
 
+    /// Downloads again the pictures a card is missing (Yanma's didn't download on Jordan's iPad, 18 Oct, and nothing
+    /// said so). True when none are missing after.
+    static func repair(_ c: Card) async -> Bool {
+        for (lang, file) in Art.missing(c) {
+            guard let f = await get(Full.self, "\(lang)/cards/\(c.id)"), let base = f.image else { continue }
+            await download(base + "/high.webp", to: Store.docs.appendingPathComponent("Cards/" + file))
+        }
+        return Art.missing(c).isEmpty
+    }
+
     /// The whole card in both languages, with its pictures and sprite saved on the iPad.
     static func fetch(_ id: String) async -> Fetched {
         guard let en = await get(Full.self, "en/cards/\(id)") else { return .offline }
@@ -330,6 +340,7 @@ enum Store {
         case .ok(let c):
             game.add(c)
             message = c.playable ? Say.added(game.lang, c.name(game.lang)) : Say.addedForLater(game.lang, c)
+            if Art.card(c, game.lang) == nil { message = Say.noPicture(game.lang, c.name(game.lang)) }
             found = []
             query = ""
             lastTime = .distantFuture // the card just added, still under the camera, isn't looked up again

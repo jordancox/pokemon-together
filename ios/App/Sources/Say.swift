@@ -99,6 +99,9 @@ enum Say {
         let e = energyCard(l, type), look = energyLook(l, type, long: false).map { ": \($0)" } ?? ""
         return t(l, "Tocca a \(n)! Metti \(e)\(look).", "\(n)'s turn! Put on \(e)\(look).")
     }
+    static func allEnergy(_ l: Lang, _ n: String) -> String {
+        t(l, "Tocca a \(n)! Ha già tutta l'Energia che serve: tocca un attacco.", "\(n)'s turn! It has all the Energy it needs: tap an attack.")
+    }
     static func wait(_ l: Lang, _ n: String) -> String { t(l, "Aspetta! Ora tocca a \(n).", "Wait! It's \(n)'s turn.") }
     static func oneEnergy(_ l: Lang) -> String { t(l, "Solo un'Energia per turno!", "Only one Energy each turn!") }
     static func energyFirst(_ l: Lang) -> String { t(l, "Prima metti un'Energia e tocca ENERGIA!", "First put on an Energy card and tap ENERGY!") }
@@ -189,6 +192,9 @@ enum Say {
     static func addedForLater(_ l: Lang, _ c: Card) -> String { t(l, "Aggiunto. ", "Added. ") + notYet(l, c) }
     static func notPokemon(_ l: Lang, _ n: String) -> String {
         t(l, "\(n) non è un Pokémon: per ora si usano solo le carte Pokémon.", "\(n) isn't a Pokémon: only Pokémon cards for now.")
+    }
+    static func noPicture(_ l: Lang, _ n: String) -> String {
+        t(l, "\(n) aggiunto, ma la sua immagine non si è scaricata: riprovo alla prossima apertura.", "\(n) added, but its picture didn't download: I'll try again next time the app opens.")
     }
     static func offline(_ l: Lang) -> String { t(l, "Per aggiungere le carte serve internet.", "Adding cards needs the internet.") }
     static func count(_ l: Lang, _ n: Int) -> String {

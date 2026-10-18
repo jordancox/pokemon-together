@@ -49,6 +49,7 @@ struct Half: View {
                         .opacity(game.coinOut ? 1 : 0)
                         .allowsHitTesting(false)
                 }
+                .id(game.pictures) // redrawn when a missing card picture has downloaded
             }
             if game.zoom[side] { Zoom(game: game, side: side) }
         }
