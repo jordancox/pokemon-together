@@ -293,7 +293,7 @@ enum Store {
         message = Say.looking(game.lang)
         found = await TCGdex.search(q)
         note("search \"\(q)\": \(found.count) found: " + found.prefix(8).map { "\($0.id) (\(Sets.label($0)))" }.joined(separator: ", "))
-        message = found.isEmpty ? Say.noneFound(game.lang) : Say.tapHis(game.lang)
+        message = found.isEmpty ? Say.noneFound(game.lang) : Say.tapCard(game.lang)
         busy = false
     }
 
@@ -309,7 +309,7 @@ enum Store {
             message = Say.looking(game.lang)
             let r = await TCGdex.match(number: number, of: total, line: line, text: texts.joined(separator: " "))
             if !r.isEmpty { found = r }
-            message = r.isEmpty ? Say.cantRead(game.lang) : Say.tapHis(game.lang)
+            message = r.isEmpty ? Say.cantRead(game.lang) : Say.tapCard(game.lang)
             busy = false
         }
     }

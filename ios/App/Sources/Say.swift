@@ -148,7 +148,7 @@ enum Say {
     static func noneFound(_ l: Lang) -> String {
         t(l, "Non trovo niente. Scrivi il numero in basso a sinistra (come 38/198), o il nome.", "Nothing found. Type the number at the bottom left (like 38/198), or the name.")
     }
-    static func tapHis(_ l: Lang) -> String {
+    static func tapCard(_ l: Lang) -> String {
         t(l, "Tocca la carta giusta: il numero sotto è quello stampato in basso a sinistra.", "Tap the right card: the number under it is the one printed at the bottom left.")
     }
     static func cantRead(_ l: Lang) -> String {
