@@ -88,9 +88,10 @@ grep -qE "log: ([5-9]|[0-9]{2,}) lines kept" "$OUT/auto.log" || { echo "the end 
 run voice 75 -- -voicetest YES -lang it -quiet NO
 # Adding cards (no camera on the simulator: the name search, and cards added the way the add screen does). Last, as
 # the cards it adds stay in the app's data for any later run.
-# The camera, without a camera: one card's frames must be looked up once (build 20's screen flickered)
-run scantest 8 -- -scantest YES -lang en
-grep -q "scantest: 1 lookup," "$OUT/scantest.log" || { echo "scantest failed:"; grep "scantest" "$OUT/scantest.log"; exit 1; }
+# The camera, without a camera: five cards in a row, each looked up once (build 20's screen flickered) and added
+# (build 33 stalled after four)
+run scantest 40 -- -scantest YES -lang en
+grep -q "scantest: 5 lookups, 5 added" "$OUT/scantest.log" || { echo "scantest failed:"; grep "scantest" "$OUT/scantest.log"; exit 1; }
 grep "scantest" "$OUT/scantest.log"
 run add-search 10 -- -demo add -query fuecoco -lang it
 run add-number 10 -- -demo add -query 38/198 -lang it
@@ -103,6 +104,6 @@ run add-list 6 -- -demo add -lang en
 # didn't download on Jordan's iPad, 18 Oct, and nothing said so)
 ! grep -h "^\[insieme\] added .* picture MISSING" "$OUT/added.log" || { echo "a card was added without its picture"; exit 1; }
 run repair 12 -- -breakpicture sv01-038 -demo start -lang en
-grep -q "pictures: 1 cards missing one, 1 repaired" "$OUT/repair.log" || { echo "a missing picture wasn't downloaded again:"; grep -E "breakpicture|pictures:" "$OUT/repair.log"; exit 1; }
+grep -q "repaired, all" "$OUT/repair.log" || { echo "a missing picture wasn't downloaded again:"; grep -E "breakpicture|pictures:" "$OUT/repair.log"; exit 1; }
 grep -hE "breakpicture|pictures:" "$OUT/repair.log"
 xcrun simctl terminate "$UDID" "$ID" || true

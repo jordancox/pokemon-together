@@ -156,10 +156,19 @@ enum TCGdex {
         case offline
     }
 
+    /// Every request gives up after a few seconds: with no limit, one that hung kept the camera from reading the next
+    /// card (Jordan, 18 Oct: "I load four and then can't load anymore. Have to close the app").
+    private static let net: URLSession = {
+        let c = URLSessionConfiguration.default
+        c.timeoutIntervalForRequest = 10
+        c.timeoutIntervalForResource = 25
+        return URLSession(configuration: c)
+    }()
+
     private static func get<T: Decodable>(_ type: T.Type, _ path: String, _ query: [URLQueryItem] = []) async -> T? {
         var c = URLComponents(string: "https://api.tcgdex.net/v2/" + path)
         if !query.isEmpty { c?.queryItems = query }
-        guard let url = c?.url, let r = try? await URLSession.shared.data(from: url),
+        guard let url = c?.url, let r = try? await net.data(from: url),
               (r.1 as? HTTPURLResponse)?.statusCode == 200 else { return nil }
         return try? JSONDecoder().decode(T.self, from: r.0)
     }
@@ -224,24 +233,24 @@ enum TCGdex {
         return Art.missing(c).isEmpty
     }
 
-    /// The whole card in both languages, with its pictures and sprite saved on the iPad.
+    /// The whole card in both languages. Its pictures and sprite come after (`finish`), so adding it doesn't wait for them.
     static func fetch(_ id: String) async -> Fetched {
         guard let en = await get(Full.self, "en/cards/\(id)") else { return .offline }
         guard en.category == "Pokemon" || en.category == "Pokémon" else { return .notPokemon(en.name) }
         let it = await get(Full.self, "it/cards/\(id)")
-        let card = make(en, it)
-        for (lang, f) in [("en", Optional(en)), ("it", it)] {
-            if let base = f?.image, let path = card.img[lang] {
-                await download(base + "/high.webp", to: Store.docs.appendingPathComponent("Cards/" + path))
-            }
-        }
-        if let dex = card.dex, Art.sprite(dex) == nil {
+        return .ok(make(en, it))
+    }
+
+    /// The card's pictures and sprite, saved on the iPad. True when its pictures are all there.
+    static func finish(_ c: Card) async -> Bool {
+        let ok = await repair(c)
+        if let dex = c.dex, Art.sprite(dex) == nil {
             let pokeapi = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"
             if !(await download(pokeapi + "other/showdown/\(dex).gif", to: Store.docs.appendingPathComponent("Sprites/\(dex).gif"))) {
                 await download(pokeapi + "\(dex).png", to: Store.docs.appendingPathComponent("Sprites/\(dex).png"))
             }
         }
-        return .ok(card)
+        return ok
     }
 
     /// Like tools/cards.py: the English card's numbers and effects, with the Italian names.
@@ -266,7 +275,7 @@ enum TCGdex {
 
     @discardableResult
     private static func download(_ s: String, to dest: URL) async -> Bool {
-        guard let url = URL(string: s), let r = try? await URLSession.shared.data(from: url),
+        guard let url = URL(string: s), let r = try? await net.data(from: url),
               (r.1 as? HTTPURLResponse)?.statusCode == 200 else { return false }
         try? FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
         return (try? r.0.write(to: dest)) != nil
@@ -286,12 +295,17 @@ enum Store {
     var query = ""
     var found: [TCGdex.Brief] = []
     var message = ""
-    var busy = false
+    var busy = false   // a search or an add: the result buttons wait
+    @ObservationIgnored private(set) var adding = false
     @ObservationIgnored private(set) var lookups = 0 // camera lookups, for -scantest
     @ObservationIgnored private var lastKey = ""   // the number last looked up: once per card in view
     @ObservationIgnored private var lastTime = Date.distantPast
     @ObservationIgnored private var seen = ""      // the number on the last frames, and how many in a row
     @ObservationIgnored private var seenCount = 0
+    @ObservationIgnored private var frames = 0     // what the camera has sent, for the grey line under it
+    @ObservationIgnored private var lookupID = 0
+    @ObservationIgnored private var lookupStart = Date.distantPast
+    @ObservationIgnored private var looking = false
     @ObservationIgnored let game: Game
 
     init(game: Game) {
@@ -314,39 +328,59 @@ enum Store {
     /// has read the same on three frames in a row (a blurry frame can misread a digit). Build 20 looked it up again
     /// whenever the line read a little differently, so "Looking…" and the pictures flickered (Jordan, 18 Oct, on the
     /// iPhone: "headache inducing with this constant popping up on screen stuff").
+    /// A lookup that has taken more than 12 seconds doesn't hold up the next card: its answer is dropped.
     func scan(_ texts: [String]) {
-        guard !busy, let line = texts.first(where: { Sets.number(in: $0) != nil }), case let (number, total)? = Sets.number(in: line) else { return }
+        frames += 1
+        let stuck = looking && Date().timeIntervalSince(lookupStart) > 12
+        guard !adding, !looking || stuck, let line = texts.first(where: { Sets.number(in: $0) != nil }),
+              case let (number, total)? = Sets.number(in: line) else { return }
         let key = "\(Int(number) ?? 0)/\(total)"
         if key == seen { seenCount += 1 } else { seen = key; seenCount = 1 }
         // a card not found is tried again after 5 seconds, not on every frame
-        guard seenCount >= 3, key != lastKey || (found.isEmpty && Date().timeIntervalSince(lastTime) > 5) else { return }
+        guard seenCount >= 3, key != lastKey || stuck || (found.isEmpty && Date().timeIntervalSince(lastTime) > 5) else { return }
         lastKey = key
         lastTime = Date()
         lookups += 1
+        lookupID += 1
+        let id = lookupID
+        looking = true
+        lookupStart = Date()
+        if found.isEmpty { message = Say.looking(game.lang) }
         Task {
-            busy = true
-            if found.isEmpty { message = Say.looking(game.lang) }
             let r = await TCGdex.match(number: number, of: total, line: line, text: texts.joined(separator: " "))
+            guard id == lookupID else { return } // a newer lookup took over
             found = r
             message = r.isEmpty ? Say.cantRead(game.lang) : Say.tapCard(game.lang)
-            busy = false
+            looking = false
         }
+    }
+
+    /// The grey line under the camera: what it's reading, for a screenshot when it seems stuck.
+    var cameraInfo: String {
+        let state = adding ? "adding" : looking ? "looking \(Int(Date().timeIntervalSince(lookupStart)))s" : "ready"
+        return "camera: \(frames) reads · \(seen.isEmpty ? "no number yet" : seen + " ×\(seenCount)") · \(lookups) lookups · \(state)"
     }
 
     func add(_ b: TCGdex.Brief) async {
         busy = true
+        adding = true
         message = Say.adding(game.lang)
         switch await TCGdex.fetch(b.id) {
         case .ok(let c):
             game.add(c)
             message = c.playable ? Say.added(game.lang, c.name(game.lang)) : Say.addedForLater(game.lang, c)
-            if Art.card(c, game.lang) == nil { message = Say.noPicture(game.lang, c.name(game.lang)) }
             found = []
             query = ""
             lastTime = .distantFuture // the card just added, still under the camera, isn't looked up again
+            Task { // its pictures, while the next card is read
+                let ok = await TCGdex.finish(c)
+                game.pictures += 1
+                if !ok { message = Say.noPicture(game.lang, c.name(game.lang)) }
+            }
         case .notPokemon(let n): message = Say.notPokemon(game.lang, n)
         case .offline: message = Say.offline(game.lang)
         }
+        adding = false
         busy = false
     }
 }
@@ -380,6 +414,9 @@ struct AddView: View {
                 ScannerView { adder.scan($0) }
                     .frame(height: phone ? 220 : 320)
                     .clipShape(RoundedRectangle(cornerRadius: 20))
+                TimelineView(.periodic(from: .now, by: 1)) { _ in
+                    Text(adder.cameraInfo).font(.system(size: 13, design: .monospaced)).foregroundStyle(.gray)
+                }
             }
             HStack {
                 TextField(Say.typeName(l), text: $adder.query)
@@ -488,13 +525,27 @@ struct ScannerView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ vc: DataScannerViewController, context: Context) {
         if !vc.isScanning { try? vc.startScanning() }
+        context.coordinator.vc = vc
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(onText: onText) }
 
     final class Coordinator: NSObject, DataScannerViewControllerDelegate {
         let onText: ([String]) -> Void
-        init(onText: @escaping ([String]) -> Void) { self.onText = onText }
+        weak var vc: DataScannerViewController?
+        init(onText: @escaping ([String]) -> Void) {
+            self.onText = onText
+            super.init()
+            // back from another app or the lock screen: the camera may have stopped
+            NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                if let vc = self?.vc, !vc.isScanning { try? vc.startScanning() }
+            }
+        }
+
+        func dataScanner(_ s: DataScannerViewController, becameUnavailableWithError error: DataScannerViewController.ScanningUnavailable) {
+            note("camera stopped: \(error)")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { if !s.isScanning { try? s.startScanning() } }
+        }
 
         func dataScanner(_ s: DataScannerViewController, didAdd added: [RecognizedItem], allItems: [RecognizedItem]) { send(allItems) }
         func dataScanner(_ s: DataScannerViewController, didUpdate updated: [RecognizedItem], allItems: [RecognizedItem]) { send(allItems) }

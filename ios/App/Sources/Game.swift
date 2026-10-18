@@ -102,6 +102,7 @@ struct Pop: Equatable {
                 for id in ids.split(separator: ",") {
                     if case .ok(let c) = await TCGdex.fetch(String(id)) {
                         add(c)
+                        _ = await TCGdex.finish(c)
                         note("added \(c.id) picture \(Art.missing(c).isEmpty ? "ok" : "MISSING") \(c.name.en)/\(c.name.it) \(c.stage ?? "") \(c.hp) HP, " + c.attacks.map { "\($0.name.en) \($0.damage)\($0.mod ?? "") \($0.fx?.kind ?? "-")" }.joined(separator: "; "))
                     } else { note("could not add \(id)") }
                 }
@@ -166,18 +167,29 @@ struct Pop: Equatable {
         note("voicetest: done")
     }
 
-    /// -scantest (the cloud Mac, which has no camera): what the camera reads from one card held still, a frame every
-    /// 50 ms, each line read a little differently and one digit misread. It must be looked up once (build 20 flickered
-    /// looking it up again and again); ios/ci/sim-shots.sh fails otherwise.
+    /// -scantest (the cloud Mac, which has no camera): what the camera reads from five cards, one after the other, each
+    /// added like a parent tapping it: a frame every 50 ms, each line read a little differently, one digit misread.
+    /// Each must be looked up once (build 20 flickered looking it up again and again) and added (build 33 stalled after
+    /// four on Jordan's iPad); ios/ci/sim-shots.sh fails otherwise.
     func scanTest() async {
         let adder = Adder(game: self)
-        let frames = [["SHF EN 001/072"], ["0 001/072 ●"], ["SHF 001/072", "Rowlet"], ["SHF EN 007/072"], ["001/072"]]
-        for i in 0..<30 {
-            adder.scan(frames[i % frames.count])
-            await pause(0.05)
+        let codes = ["001/072", "038/198", "025/165", "034/193", "036/198"], sets = ["SHF", "SVI", "MEW", "PAL", "SVI"]
+        let misread = ["007/072", "039/198", "026/165", "035/193", "037/198"]
+        var added = 0
+        for (k, n) in codes.enumerated() {
+            let frames = [["\(sets[k]) EN \(n)"], ["0 \(n) ●"], ["\(sets[k]) \(n)", "Rowlet"], ["\(sets[k]) EN \(misread[k])"], [n]]
+            for i in 0..<(k == 0 ? 30 : 10) {
+                adder.scan(frames[i % frames.count])
+                await pause(0.05)
+            }
+            for _ in 0..<150 where adder.found.isEmpty { await pause(0.1) } // the lookup, 15 seconds at most
+            if let b = adder.found.first {
+                await adder.add(b)
+                added += 1
+            }
+            note("scantest: card \(k + 1) \(n): \(adder.lookups) lookups so far, \(adder.cameraInfo)")
         }
-        while adder.busy { await pause(0.1) }
-        note("scantest: \(adder.lookups) lookup\(adder.lookups == 1 ? "" : "s"), found \(adder.found.map(\.id))")
+        note("scantest: \(adder.lookups) lookups, \(added) added")
     }
 
     /// Card pictures that didn't download when the card was added: tried again each time the app opens.
@@ -186,7 +198,7 @@ struct Pop: Equatable {
         guard !broken.isEmpty else { return }
         var fixed = 0
         for c in broken where await TCGdex.repair(c) { fixed += 1 }
-        note("pictures: \(broken.count) cards missing one, \(fixed) repaired")
+        note("pictures: \(broken.count) cards missing one, \(fixed) repaired\(fixed == broken.count ? ", all" : "")")
         if fixed > 0 { pictures += 1 }
     }
 
