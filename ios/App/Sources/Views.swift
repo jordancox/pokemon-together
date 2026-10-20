@@ -9,8 +9,10 @@ import UIKit
 /// side upside down is impossible"). The voice is off unless switched on: the parent does the talking.
 let parentSide = 0, childSide = 1
 
-/// Before a battle. The parent's half: the level, then what to tap; once the Poké Ball has chosen, both Pokémon to find
-/// and the Energy cards to put next to each. The child's half: READY?, then his Pokémon, big.
+/// Before a battle. The parent's half: the level, then what to tap (or why the battle can't start yet); once the Poké
+/// Ball has chosen, both players' Pokémon to find and the Energy cards to put next to each. The child's half: READY?,
+/// then his Pokémon, big (from level 2 his team: the one that fights at the top, by the middle of the table, as on the
+/// table, and the bench behind it).
 struct StartView: View {
     let game: Game
     let side: Int
@@ -18,6 +20,14 @@ struct StartView: View {
         Group {
             if side == parentSide {
                 if game.sides[childSide].card != nil { parentChosen } else { parentIntro }
+            } else if game.sides[side].team.count > 1 {
+                let team = game.sides[side].team
+                VStack(spacing: 18) {
+                    CardSlot(card: team[0].card, lang: game.lang).frame(width: 200, height: 279).onTapGesture { game.read(side) }
+                    HStack(spacing: 24) {
+                        ForEach(1..<team.count, id: \.self) { i in CardSlot(card: team[i].card, lang: game.lang).frame(width: 140, height: 195) }
+                    }
+                }
             } else if let c = game.sides[side].card {
                 VStack(spacing: 14) {
                     CardSlot(card: c, lang: game.lang).frame(width: 300, height: 419).onTapGesture { game.read(side) }
@@ -37,25 +47,28 @@ struct StartView: View {
 
     private var parentIntro: some View {
         let l = game.lang
-        return VStack(alignment: .leading, spacing: 6) {
-            Text(Say.chooseLevel(l)).font(.system(size: 20, weight: .heavy, design: .rounded)).opacity(0.6)
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(Say.chooseLevel(l)).font(.system(size: 18, weight: .heavy, design: .rounded)).opacity(0.6)
             ForEach(1...Say.levels, id: \.self) { n in
                 Button { game.setLevel(n) } label: { LevelRow(n: n, lang: l, on: game.level == n) }.buttonStyle(.plain)
             }
-            Spacer(minLength: 8)
-            Text(game.levelNote ?? Say.start(l, game.cards.count))
-                .font(.system(size: 22, weight: .semibold, design: .rounded))
-                .foregroundStyle(game.levelNote == nil ? Color.white : .yellow)
+            Spacer(minLength: 6)
+            // what this level is; or, in yellow, why the Poké Ball can't start it yet (shaken when it's tapped)
+            Text(game.levelNote ?? game.intro())
+                .font(.system(size: 21, weight: .semibold, design: .rounded))
+                .foregroundStyle(game.levelNote == nil && game.canStart ? Color.white : .yellow)
                 .fixedSize(horizontal: false, vertical: true)
+                .modifier(Shake(t: CGFloat(game.nudge)))
         }
-        .padding(28)
+        .padding(.horizontal, 28).padding(.vertical, 20)
     }
 
     private var parentChosen: some View {
         let l = game.lang
-        return VStack(alignment: .leading, spacing: 16) {
+        let teams = game.sides[childSide].team.count > 1
+        return VStack(alignment: .leading, spacing: teams ? 12 : 16) {
             ForEach([childSide, parentSide], id: \.self) { s in
-                if let c = game.sides[s].card {
+                if teams { teamRow(s) } else if let c = game.sides[s].card {
                     HStack(spacing: 20) {
                         CardSlot(card: c, lang: l).frame(width: 110, height: 153).onTapGesture { game.read(s) }
                         VStack(alignment: .leading, spacing: 10) {
@@ -68,11 +81,32 @@ struct StartView: View {
                     }
                 }
             }
-            Text(Say.setUp(l)).font(.system(size: 24, weight: .semibold, design: .rounded))
+            Text(teams ? Say.setUpTeam(l) : Say.setUp(l)).font(.system(size: teams ? 20 : 24, weight: .semibold, design: .rounded))
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(28)
+        .padding(.horizontal, 28).padding(.vertical, teams ? 18 : 28)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// A team on the parent's half: the one that fights first, big, then the bench; the Energy cards for each under it.
+    private func teamRow(_ s: Int) -> some View {
+        let l = game.lang, team = game.sides[s].team
+        return HStack(alignment: .top, spacing: 14) {
+            Text(s == childSide ? Say.his(l) : Say.yours(l))
+                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                .frame(width: 110, alignment: .leading)
+            ForEach(team.indices, id: \.self) { i in
+                VStack(spacing: 6) {
+                    CardSlot(card: team[i].card, lang: l)
+                        .frame(width: i == 0 ? 100 : 76, height: i == 0 ? 140 : 106)
+                        .frame(height: 140, alignment: .bottom)
+                    HStack(spacing: -6) {
+                        ForEach(Array(game.energyFor(team[i].card).enumerated()), id: \.offset) { _, t in EnergyIcon(type: t, size: 24) }
+                    }
+                }
+                .frame(width: 104)
+            }
+        }
     }
 }
 
@@ -82,21 +116,21 @@ struct LevelRow: View {
     let lang: Lang
     let on: Bool
     var body: some View {
-        let words = Say.level(lang, n)
+        let words = Say.level(lang, n), built = n <= Say.built
         HStack(spacing: 12) {
-            Text("\(n)").font(.system(size: 20, weight: .black, design: .rounded))
-                .frame(width: 32, height: 32)
+            Text("\(n)").font(.system(size: 18, weight: .black, design: .rounded))
+                .frame(width: 28, height: 28)
                 .background(Circle().fill(.white.opacity(on ? 0.3 : 0.1)))
-            Text(words.0).font(.system(size: 21, weight: .heavy, design: .rounded))
-            Text(words.1 + (n == 1 ? "" : " · " + Say.notBuilt(lang)))
-                .font(.system(size: 17, weight: .medium, design: .rounded)).opacity(0.7)
+            Text(words.0).font(.system(size: 20, weight: .heavy, design: .rounded))
+            Text(words.1 + (built ? "" : " · " + Say.notBuilt(lang)))
+                .font(.system(size: 16, weight: .medium, design: .rounded)).opacity(0.7)
                 .lineLimit(1).minimumScaleFactor(0.7)
             Spacer(minLength: 0)
-            if on { Image(systemName: "checkmark").font(.system(size: 20, weight: .bold)) }
+            if on { Image(systemName: "checkmark").font(.system(size: 18, weight: .bold)) }
         }
-        .padding(.horizontal, 10).frame(height: 40)
-        .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(on ? 0.16 : 0.04)))
-        .opacity(n == 1 ? 1 : 0.5)
+        .padding(.horizontal, 10).frame(height: 34)
+        .background(RoundedRectangle(cornerRadius: 10).fill(.white.opacity(on ? 0.16 : 0.04)))
+        .opacity(built ? 1 : 0.5)
     }
 }
 
@@ -126,11 +160,15 @@ struct BattleView: View {
             if isParent {
                 // every line of this game, to read and pass on, and to scroll back to when they come quickly
                 LogView(lines: game.captions).frame(height: 170)
-                ParentStatus(hp: me.hp, energy: me.energy).frame(height: 50)
+                ParentStatus(me: me).frame(height: 50)
             } else {
                 // By the middle of the table: HP, the Pokémon, its Energy
                 HStack(spacing: 0) {
-                    HPView(hp: me.hp, full: me.card?.hp ?? 0).frame(width: 250)
+                    VStack(spacing: 14) {
+                        HPView(hp: me.hp, full: me.card?.hp ?? 0)
+                        if me.team.count > 1 { BenchRow(me: me) }
+                    }
+                    .frame(width: 250)
                     ZStack(alignment: .bottom) { // the Pokémon stands on its shadow
                         Ellipse().fill(.black.opacity(0.22)).frame(width: 160, height: 30)
                         SpriteView(dex: me.card?.dex, box: arena - 50)
@@ -213,6 +251,20 @@ struct Controls: View {
             }
             Spacer(minLength: 0)
             HStack {
+                if game.level >= 3 && me.team.count > 1 { // level 3: the retreat cost's circles, as on the card
+                    Button { Task { await game.retreat(side) } } label: {
+                        HStack(spacing: 8) {
+                            Text(Say.retreatWord(game.lang)).font(.system(size: 24, weight: .black, design: .rounded))
+                            HStack(spacing: -6) {
+                                ForEach(0..<(me.card?.retreat ?? 0), id: \.self) { _ in EnergyIcon(type: "Colorless", size: 30) }
+                            }
+                        }
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 22)
+                        .frame(height: 58)
+                        .background(Capsule().fill(.white.opacity(mine && game.canRetreat(side) ? 1 : 0.6)))
+                    }
+                }
                 Spacer()
                 Button { Task { await game.done(side) } } label: {
                     Text(Say.doneWord(game.lang))
@@ -326,19 +378,73 @@ struct LogView: View {
     }
 }
 
-/// The parent's half during the battle: their Pokémon's HP and Energy, small (the big ones are on the child's half).
+/// The parent's half during the battle: their Pokémon's HP, the bench and the Energy, small (the big ones are on the
+/// child's half).
 struct ParentStatus: View {
-    let hp: Int
-    let energy: [String]
+    let me: Side
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "heart.fill").foregroundStyle(Color(red: 0.9, green: 0.15, blue: 0.2))
-            Text("\(hp)").contentTransition(.numericText()).foregroundStyle(.white)
+            Text("\(me.hp)").contentTransition(.numericText()).foregroundStyle(.white)
+            if me.team.count > 1 { BenchRow(me: me, box: 34, inline: true).padding(.leading, 18) }
             Spacer()
-            ForEach(Array(energy.prefix(10).enumerated()), id: \.offset) { _, t in EnergyIcon(type: t, size: 30) }
+            ForEach(Array(me.energy.prefix(10).enumerated()), id: \.offset) { _, t in EnergyIcon(type: t, size: 30) }
         }
         .font(.system(size: 32, weight: .black, design: .rounded))
         .padding(.horizontal, 26)
+    }
+}
+
+/// The rest of a team, beside the one fighting: those waiting on the bench with their HP, and those knocked out, grey.
+struct BenchRow: View {
+    let me: Side
+    var box: CGFloat = 56
+    var inline = false // the parent's: the HP beside each, and nothing moving
+    var body: some View {
+        HStack(spacing: inline ? 14 : 10) {
+            ForEach(me.team.indices.filter { $0 != me.active }, id: \.self) { i in
+                let m = me.team[i], out = m.hp == 0
+                let hp = Text(out ? "KO" : "\(m.hp)").font(.system(size: inline ? 20 : 18, weight: .black, design: .rounded))
+                    .foregroundStyle(.white.opacity(out ? 0.5 : 0.9))
+                let sprite = SpriteView(dex: m.card.dex, box: box, still: inline || out).frame(width: box, height: box)
+                    .saturation(out ? 0 : 1).opacity(out ? 0.4 : 1)
+                if inline { HStack(spacing: 4) { sprite; hp } } else { VStack(spacing: 0) { sprite; hp } }
+            }
+        }
+    }
+}
+
+/// Choosing who comes in from the bench, after a knockout or for a retreat: that half's bench Pokémon, big, to tap. On
+/// the child's half one word; tapping away from the cards calls off a retreat.
+struct BenchPicker: View {
+    let game: Game
+    let side: Int
+    var body: some View {
+        let me = game.sides[side], child = side == childSide
+        ZStack {
+            Color.black.opacity(0.82).contentShape(Rectangle()).onTapGesture { game.cancelPick() }
+            VStack(spacing: 18) {
+                Text(child ? Say.whoWord(game.lang) : Say.tapWho(game.lang))
+                    .font(.system(size: child ? 64 : 32, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                HStack(spacing: 30) {
+                    ForEach(me.bench, id: \.self) { i in
+                        Button { Task { await game.pick(side, i) } } label: {
+                            VStack(spacing: 8) {
+                                CardSlot(card: me.team[i].card, lang: game.lang).frame(width: 230, height: 321)
+                                HStack(spacing: 8) {
+                                    Image(systemName: "heart.fill").foregroundStyle(Color(red: 0.9, green: 0.15, blue: 0.2))
+                                    Text("\(me.team[i].hp)").foregroundStyle(.white)
+                                }
+                                .font(.system(size: 34, weight: .black, design: .rounded))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .frame(width: halfSize.width, height: halfSize.height)
     }
 }
 

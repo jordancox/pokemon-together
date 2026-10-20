@@ -13,10 +13,13 @@ enum Say {
     // The start (Jordan, 18 Oct 2026, on build 20's card grid on both halves: "I'm 45 and can't parse what this is").
     // The child's half: one word. The parent's: the level, and what to do.
     static func readyWord(_ l: Lang) -> String { t(l, "PRONTO?", "READY?") }
+    static func whoWord(_ l: Lang) -> String { t(l, "CHI?", "WHO?") }
+    static func retreatWord(_ l: Lang) -> String { t(l, "RITIRATA", "RETREAT") } // the word printed on the card
     static func chooseLevel(_ l: Lang) -> String { t(l, "LIVELLO", "LEVEL") }
     /// The levels, laddered up by hand as you learn (Jordan, 18 Oct: "Practice battle… up to like level 5? level 10? I
     /// don't know how many steps till we master it"). Each adds one thing from the real game; 8 is all of it.
     static let levels = 8
+    static let built = 3 // 1 Practice battle, 2 Team, 3 Retreat
     static func level(_ l: Lang, _ n: Int) -> (String, String) {
         switch n {
         case 1: return (t(l, "Battaglia di prova", "Practice battle"), t(l, "un Pokémon a testa: Energia e attacchi", "one Pokémon each: Energy and attacks"))
@@ -31,7 +34,7 @@ enum Say {
     }
     static func notBuilt(_ l: Lang) -> String { t(l, "non ancora pronto", "not built yet") }
     static func levelSoon(_ l: Lang) -> String {
-        t(l, "Questo livello non è ancora pronto: per ora, la battaglia di prova.", "That level isn't built yet: for now, the practice battle.")
+        t(l, "Questo livello non è ancora pronto: per ora, i livelli da 1 a 3.", "That level isn't built yet: for now, levels 1 to 3.")
     }
     static func his(_ l: Lang) -> String { t(l, "IL SUO", "HIS") }
     static func yours(_ l: Lang) -> String { t(l, "IL TUO", "YOURS") }
@@ -39,29 +42,67 @@ enum Say {
         t(l, "Trovate le due carte. Ognuno mette la sua davanti a sé, con accanto le carte Energia qui sopra (quelle con un solo grande simbolo; se non le avete, vanno bene dei gettoni). Poi toccate la Poké Ball.",
           "Find both cards. Each of you puts yours in front of you, with the Energy cards shown here next to it (the ones with one big symbol; coins will do if you don't have them). Then tap the Poké Ball.")
     }
+    /// From level 2: where the cards go on the table, shown under the two teams.
+    static func setUpTeam(_ l: Lang) -> String {
+        t(l, "La carta grande va davanti a voi: è il Pokémon che combatte. Le altre vanno dietro, in fila: è la panchina, dove aspettano il loro turno. Accanto mettete le carte Energia qui sopra (se non le avete, vanno bene dei gettoni). Poi toccate la Poké Ball.",
+          "The big card goes in front of you: that Pokémon fights. The others go in a row behind it: that's the bench, where they wait their turn. Next to them, put the Energy cards shown here (coins will do if you don't have them). Then tap the Poké Ball.")
+    }
+    /// Choosing who comes in from the bench, on the parent's half.
+    static func tapWho(_ l: Lang) -> String { t(l, "Tocca il Pokémon che entra", "Tap the Pokémon that comes in") }
+    /// Under a card on the add screen that can't battle.
+    static func cantBattle(_ l: Lang) -> String { t(l, "non può combattere", "can't battle") }
     static func tapBallAgain(_ l: Lang) -> String { t(l, "↑  TOCCA LA POKÉ BALL PER RIGIOCARE", "↑  TAP THE POKÉ BALL TO PLAY AGAIN") }
     static func cardsWord(_ l: Lang) -> String { t(l, "CARTE", "CARDS") }
 
     // Spoken
     static func voiceOn(_ l: Lang) -> String { t(l, "Eccomi!", "I'm back!") }
     static func language(_ l: Lang) -> String { t(l, "Italiano!", "English!") }
-    /// What this is and what to do first; `n` is how many of your cards can play. The app chooses the Pokémon (the
-    /// Poké Ball), so nobody needs to know which cards are good.
-    static func start(_ l: Lang, _ n: Int) -> String {
-        n == 0 ? t(l, "Prima aggiungete le vostre carte Pokémon: toccate CARTE, in mezzo.", "First, add your Pokémon cards: tap CARDS, in the middle.")
-            : n == 1 ? t(l, "Aggiungete almeno un altro Pokémon: ne serve uno a testa. Toccate CARTE.", "Add at least one more Pokémon: you need one each. Tap CARDS.")
-            : t(l, "Battaglia di prova! Un Pokémon a testa. A turno, si mette un'Energia e si attacca. Vince chi manda KO l'altro Pokémon. Toccate la Poké Ball: scelgo io un Pokémon per ognuno.",
-                "Practice battle! One Pokémon each. Take turns: put on an Energy card, then attack. Knock out the other Pokémon to win. Tap the Poké Ball and I'll choose a Pokémon for each of you.")
+    /// What this level is and what to do first; `size` is how many Pokémon each player gets. The app chooses the
+    /// Pokémon (the Poké Ball), so nobody needs to know which cards are good.
+    static func start(_ l: Lang, _ level: Int, _ size: Int) -> String {
+        let n = size == 2 ? t(l, "Due", "Two") : t(l, "Tre", "Three")
+        switch level {
+        case 1: return t(l, "Battaglia di prova! Un Pokémon a testa. A turno, si mette un'Energia e si attacca. Vince chi manda KO l'altro Pokémon. Toccate la Poké Ball: scelgo io un Pokémon per ognuno.",
+                         "Practice battle! One Pokémon each. Take turns: put on an Energy card, then attack. Knock out the other Pokémon to win. Tap the Poké Ball and I'll choose a Pokémon for each of you.")
+        case 2: return t(l, "Squadra! \(n) Pokémon a testa. Ne combatte uno alla volta: gli altri aspettano dietro, in panchina. Quando uno va KO, entra il prossimo. Vince chi manda KO tutta la squadra dell'altro. Toccate la Poké Ball: scelgo io una squadra per ognuno.",
+                         "Team! \(n) Pokémon each. One fights at a time; the others wait behind it, on the bench. When one is knocked out, the next comes in. Knock out the other's whole team to win. Tap the Poké Ball and I'll choose a team for each of you.")
+        default: return t(l, "Ritirata! Squadre di \(n.lowercased()) Pokémon, come nel livello 2. In più, nel tuo turno puoi ritirare il Pokémon che combatte: torna in panchina ed entra un altro. Costa Energia. Toccate la Poké Ball: scelgo io una squadra per ognuno.",
+                          "Retreat! Teams of \(n.lowercased()) Pokémon, as in level 2. And now, on your turn, you can retreat the Pokémon that's fighting: it goes back to the bench and another comes in. It costs Energy. Tap the Poké Ball and I'll choose a team for each of you.")
+        }
     }
-    /// One of your cards that can't play yet, said when it's added.
+    /// Why the Poké Ball can't start a battle yet, in plain words: how many cards it needs, how many of yours can battle,
+    /// which can't, and what to do (Jordan, 20 Oct 2026: "it's not clear why the battle won't start sometimes").
+    static func cantStart(_ l: Lang, level: Int, can: Int, need: Int, added: Int, out: [String]) -> String {
+        guard added > 0 else { return t(l, "Prima aggiungete le vostre carte Pokémon: toccate CARTE, in mezzo.", "First, add your Pokémon cards: tap CARDS, in the middle.") }
+        var s = level == 1 ? t(l, "Per giocare serve un Pokémon a testa: almeno 2.", "You need one Pokémon each: at least 2.")
+            : t(l, "Questo livello vuole almeno 2 Pokémon a testa: 4 in tutto.", "This level needs at least 2 Pokémon each: 4 in all.")
+        s += " " + (can == 0 ? t(l, "Nessuno dei vostri può combattere.", "None of yours can battle.")
+            : can == 1 ? t(l, "Ne avete 1 che può combattere.", "You have 1 that can battle.")
+            : t(l, "Ne avete \(can) che possono combattere.", "You have \(can) that can battle."))
+        if !out.isEmpty {
+            let names = list(l, out.count > 4 ? Array(out.prefix(4)) + ["…"] : out)
+            s += " " + (out.count == 1 ? t(l, "\(names) non può ancora combattere: l'app non sa giocare i suoi attacchi.", "\(names) can't battle yet: the app can't play its attacks.")
+                : t(l, "\(names) non possono ancora combattere: l'app non sa giocare i loro attacchi.", "\(names) can't battle yet: the app can't play their attacks."))
+        }
+        s += " " + t(l, "Aggiungete altre carte con CARTE", "Add more with CARDS")
+        if level > 1 && can >= 2 { s += t(l, ", oppure giocate al livello 1", ", or play level 1") }
+        return s + "."
+    }
+    /// "A, B e C" / "A, B and C"
+    static func list(_ l: Lang, _ words: [String]) -> String {
+        words.count < 2 ? words.joined() : words.dropLast().joined(separator: ", ") + t(l, " e ", " and ") + words.last!
+    }
+    /// One of your cards that can't battle, said when it's added.
     static func notYet(_ l: Lang, _ c: Card) -> String {
         let n = c.name(l)
-        return c.stage != "Basic" ? t(l, "\(n) è un'evoluzione: entra in gioco in un livello più avanti.", "\(n) is an Evolution card: it joins the game in a later level.")
-            : t(l, "\(n) non ha un attacco che fa danni: entra in gioco in un livello più avanti.", "\(n) has no attack that does damage: it joins the game in a later level.")
+        return t(l, "\(n) non può ancora combattere: l'app non sa giocare i suoi attacchi.", "\(n) can't battle yet: the app can't play its attacks.")
     }
     static func chosen(_ l: Lang, _ a: String, _ b: String) -> String {
         t(l, "\(a) contro \(b)! Ognuno cerca la carta che vede sulla sua metà dello schermo e la mette davanti a sé.",
           "\(a) against \(b)! Each of you, find the card on your half of the screen and put it in front of you.")
+    }
+    static func chosenTeam(_ l: Lang) -> String {
+        t(l, "Ecco le squadre! Ognuno cerca le carte che vede sulla sua metà dello schermo.", "Here are the teams! Each of you, find the cards on your half of the screen.")
     }
     static func ready(_ l: Lang) -> String {
         t(l, "Accanto mettete le carte Energia che vedete: sono quelle con un solo grande simbolo. Se non le avete, vanno bene dei gettoni. Pronti? Toccate la Poké Ball!",
@@ -101,6 +142,11 @@ enum Say {
     }
     static func allEnergy(_ l: Lang, _ n: String) -> String {
         t(l, "Tocca a \(n)! Ha già tutta l'Energia che serve: tocca un attacco.", "\(n)'s turn! It has all the Energy it needs: tap an attack.")
+    }
+    /// After a retreat, when the Pokémon that came in has no Energy yet this turn.
+    static func putOn(_ l: Lang, _ n: String, _ type: String) -> String {
+        let e = energyCard(l, type), look = energyLook(l, type, long: false).map { ": \($0)" } ?? ""
+        return t(l, "Metti \(e) sotto la carta di \(n)\(look). Poi tocca ENERGIA.", "Put \(e) under \(n)'s card\(look). Then tap ENERGY.")
     }
     static func wait(_ l: Lang, _ n: String) -> String { t(l, "Aspetta! Ora tocca a \(n).", "Wait! It's \(n)'s turn.") }
     static func oneEnergy(_ l: Lang) -> String { t(l, "Solo un'Energia per turno!", "Only one Energy each turn!") }
@@ -161,6 +207,53 @@ enum Say {
     static func restNext(_ l: Lang, _ n: String) -> String { t(l, "Al prossimo turno \(n) non potrà attaccare.", "\(n) can't attack next turn.") }
     static func foeLocked(_ l: Lang, _ n: String) -> String { t(l, "\(n) al prossimo turno non potrà attaccare!", "\(n) can't attack next turn!") }
     static func ko(_ l: Lang, _ n: String) -> String { t(l, "\(n) è KO! Mettete la sua carta da parte.", "\(n) is knocked out! Put its card aside.") }
+    // The team (from level 2)
+    static func koTeam(_ l: Lang, _ n: String) -> String {
+        t(l, "\(n) è KO! Mettete da parte la sua carta, e rimettete le sue Energie con le altre.", "\(n) is knocked out! Put its card aside, and its Energy cards back with the others.")
+    }
+    static func koLast(_ l: Lang, _ n: String) -> String {
+        t(l, "\(n) è KO! Era l'ultimo Pokémon della squadra.", "\(n) is knocked out! That was the last Pokémon on the team.")
+    }
+    static func whoNext(_ l: Lang, _ n: String) -> String {
+        t(l, "Chi entra al posto di \(n)? Si sceglie dalla panchina: tocca un Pokémon su quella metà dello schermo.",
+          "Who takes \(n)'s place? Choose from the bench: tap a Pokémon on that half of the screen.")
+    }
+    static func comesIn(_ l: Lang, _ n: String) -> String { t(l, "Entra \(n)! Sposta la sua carta davanti.", "In comes \(n)! Move its card to the front.") }
+    static func teamWins(_ l: Lang, _ n: String) -> String { t(l, "Vince la squadra di \(n)! Bella partita!", "\(n)'s team wins! Great game!") }
+    // Retreat (level 3)
+    static func retreatTeach(_ l: Lang, _ n: String, _ cost: Int) -> String {
+        t(l, "Ritirata: \(n) torna in panchina e un altro Pokémon prende il suo posto. Guarda in basso sulla carta di \(n), accanto a «ritirata»: ogni cerchio è una carta Energia da togliere." + (cost == 0 ? " Non ci sono cerchi: è gratis." : ""),
+          "Retreat: \(n) goes back to the bench and another Pokémon takes its place. Look at the bottom of \(n)'s card, next to \"retreat\": each circle is one Energy card to take off." + (cost == 0 ? " There are none: it's free." : ""))
+    }
+    static func retreatCost(_ l: Lang, _ n: String, _ k: Int, _ have: Int) -> String {
+        t(l, "Per ritirarsi \(n) ha bisogno di \(k) Energi\(k == 1 ? "a" : "e"): ne ha \(have).", "\(n) needs \(k) Energy to retreat: it has \(have).")
+    }
+    static func oneRetreat(_ l: Lang) -> String { t(l, "Solo una ritirata per turno!", "Only one retreat each turn!") }
+    static func noBench(_ l: Lang) -> String { t(l, "Non c'è nessuno in panchina con cui scambiarlo.", "There's no one on the bench to swap with.") }
+    static func whoIn(_ l: Lang, _ n: String) -> String {
+        t(l, "Chi prende il posto di \(n)? Tocca un Pokémon della panchina.", "Who takes \(n)'s place? Tap a Pokémon from the bench.")
+    }
+    /// The Energy cards to take off, by type: "un'Energia Lampo e 2 Energie Fuoco" / "a Lightning Energy card and 2 Fire Energy cards"
+    static func energyList(_ l: Lang, _ types: [String]) -> String {
+        var order: [String] = []
+        for e in types where !order.contains(e) { order.append(e) }
+        return list(l, order.map { e in
+            let k = types.filter { $0 == e }.count
+            return k == 1 ? energyCard(l, e) : t(l, "\(k) Energie \(Kind.name(e, l))", "\(k) \(e) Energy cards")
+        })
+    }
+    static func retreated(_ l: Lang, _ out: String, _ inn: String, _ paid: [String], kept: Int) -> String {
+        let swap = t(l, "scambia le carte: \(out) va in panchina, \(inn) viene davanti.", "swap the cards: \(out) goes to the bench, \(inn) comes to the front.")
+        var s = paid.isEmpty ? t(l, "La ritirata di \(out) non costa niente: ", "\(out)'s retreat costs nothing: ") + swap
+            : t(l, "Togli \(energyList(l, paid)) da \(out) e \(paid.count == 1 ? "rimettila" : "rimettile") con le altre. Poi ",
+                "Take \(energyList(l, paid)) off \(out) and put \(paid.count == 1 ? "it" : "them") back with the others. Then ") + swap
+        if kept > 0 { s += t(l, " Le sue altre Energie restano con lui.", " Its other Energy cards stay with it.") }
+        return s
+    }
+    static func retreatTip(_ l: Lang, _ n: String, _ type: String) -> String {
+        t(l, "Attenzione: \(n) teme il tipo \(type), che gli fa danni doppi. Con RITIRATA puoi mandarlo in panchina.",
+          "Careful: \(n) is weak to \(type), which does double damage to it. RETREAT can send it back to the bench.")
+    }
     static func coinTeach(_ l: Lang) -> String { t(l, "Questo attacco dice di lanciare una moneta. La lancio io!", "This attack says to flip a coin. I'll flip it!") }
     static func wins(_ l: Lang, _ n: String) -> String { t(l, "Vince \(n)! Bella partita!", "\(n) wins! Great game!") }
     static func again(_ l: Lang) -> String {
@@ -172,8 +265,8 @@ enum Say {
     /// I'm adding the ones on the bottom")
     static func yourCards(_ l: Lang) -> String { t(l, "Le vostre carte", "Your cards") }
     static func addHint(_ l: Lang) -> String {
-        t(l, "Le carte Pokémon che avete. A ogni partita l'app ne sceglie due di forza simile, una a testa. Inquadra il codice in basso a sinistra di ogni carta (per esempio SVI 038/198), oppure scrivi il numero (38/198) o il nome.",
-          "The Pokémon cards you have. Each game, the app picks two of about the same strength, one each. Point the camera at the code at the bottom left of each card (like SVI 038/198), or type the number (38/198) or the name.")
+        t(l, "Le carte Pokémon che avete, evoluzioni comprese. A ogni partita l'app sceglie per ognuno Pokémon di forza simile. Inquadra il codice in basso a sinistra di ogni carta (per esempio SVI 038/198), oppure scrivi il numero (38/198) o il nome.",
+          "The Pokémon cards you have, evolved ones too. Each game, the app picks Pokémon of about the same strength for each of you. Point the camera at the code at the bottom left of each card (like SVI 038/198), or type the number (38/198) or the name.")
     }
     static func typeName(_ l: Lang) -> String { t(l, "Numero (38/198) o nome", "Number (38/198) or name") }
     static func searchWord(_ l: Lang) -> String { t(l, "Cerca", "Search") }

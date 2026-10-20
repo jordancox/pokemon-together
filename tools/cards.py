@@ -109,8 +109,9 @@ def build():
         b = get(f'{POKEAPI}/{dex}.png')
         if b: (SPRITES / f'{dex}.png').write_bytes(b)
         else: notes.append(f'#{dex}: no sprite')
-    basics = sum(c['stage'] == 'Basic' for c in cards)
-    print(f'{len(cards)} Pokémon ({basics} Basic) → {OUT.relative_to(ROOT)}')
+    # like the app's Card.playable: an attack that does damage, printed or written in its text
+    battle = sum(any(a['damage'] > 0 or (a['fx'] or {}).get('kind') in ('hit', 'counters') for a in c['attacks']) for c in cards)
+    print(f'{len(cards)} Pokémon ({battle} can battle) → {OUT.relative_to(ROOT)}')
     for n in notes: print('  ' + n)
 
 

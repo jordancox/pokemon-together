@@ -51,6 +51,10 @@ run() { # name, seconds before each shot…, launch arguments after --
   local took=$((SECONDS - start))
   echo "  $name: ${took}s$([ $took -gt $((want + slack)) ] && echo " SLOW (waits ${want}s)")"
 }
+wait_for() { # log name, pattern, seconds at most: a whole game goes on after its screenshots, until the next launch
+  local t=0; until grep -q "$2" "$OUT/$1.log" 2>/dev/null; do [ $t -ge "$3" ] && return 1; sleep 2; t=$((t + 2)); done
+  [ $t -gt 0 ] && echo "  $1: $2, ${t}s after the screenshots"; return 0
+}
 if [ "$KIND" = iphone ]; then
   xcrun simctl shutdown all || true # the iPad simulator is done: two at once on 3 cores is too many
   xcrun simctl boot "$UDID" 2>/dev/null || true
@@ -80,8 +84,31 @@ run quiet 4 -- -demo battle -lang it -quiet YES
 run zoom 4 -- -demo zoom -lang it -quiet NO
 run over 4 -- -demo over -lang en -quiet NO
 run auto 2 2 2 3 4 6 -- -auto YES -fast YES -lang it -quiet NO
+wait_for auto "auto: finished" 60 || true
 run auto-en 25 -- -auto YES -fast YES -lang en -quiet NO
+wait_for auto-en "auto: finished" 60 || true
 run auto-2 25 -- -auto YES -fast YES -lang it -quiet NO
+wait_for auto-2 "auto: finished" 60 || true
+# Levels 2 (Team) and 3 (Retreat): the teams chosen, the battle with the bench, choosing who comes in after a
+# knockout, RETREAT, and whole games
+run start-2 5 -- -demo start -level 2 -lang it
+run ready-2 5 -- -demo ready -level 2 -lang en
+run battle-2 5 -- -demo battle -level 2 -lang it
+run next-2 5 -- -demo next -level 2 -lang en
+run battle-3 5 -- -demo battle -level 3 -lang en
+run auto-team 3 12 -- -auto YES -fast YES -level 2 -lang it -quiet NO
+wait_for auto-team "auto: finished" 180 || true
+run auto-retreat 3 12 -- -auto YES -fast YES -level 3 -lang en -quiet NO
+wait_for auto-retreat "auto: finished" 180 || true
+# Every whole game ends with a winner (a team game left waiting for someone to come in wouldn't); in a team game the
+# loser's three were knocked out one after the other; in level 3 someone retreated
+for f in auto auto-en auto-2 auto-team auto-retreat; do
+  grep -q "auto: finished, winner " "$OUT/$f.log" && ! grep -q "winner none" "$OUT/$f.log" \
+    || { echo "$f: the game didn't finish:"; grep -E "auto:|win:|KO:" "$OUT/$f.log"; exit 1; }
+done
+[ "$(grep -c '^\[insieme\] KO:' "$OUT/auto-team.log")" -ge 3 ] || { echo "auto-team: fewer than 3 knockouts:"; grep -E "KO:|in:|win:" "$OUT/auto-team.log"; exit 1; }
+grep -q '^\[insieme\] retreat:' "$OUT/auto-retreat.log" || { echo "auto-retreat: nobody retreated"; exit 1; }
+grep -hE "^\[insieme\] (chose|KO:|in:|retreat:|win:|auto:)" "$OUT/auto-team.log" "$OUT/auto-retreat.log"
 # The end keeps the game's lines on the parent's half, to finish reading them out (build 31 dropped them)
 grep -qE "log: ([5-9]|[0-9]{2,}) lines kept" "$OUT/auto.log" || { echo "the end didn't keep the game's lines:"; grep "log:" "$OUT/auto.log"; exit 1; }
 # Kokoro on the simulator: how long it takes to make lines (the log's "kokoro:" lines; the iPad is slower)
@@ -98,12 +125,24 @@ run add-number 10 -- -demo add -query 38/198 -lang it
 run add-camera 10 -- -demo add -query "HP 60 LA SI 038/198" -lang it # as the camera reads a card: not the old sets HP, LA, SI
 run add-code 10 -- -demo add -query "G SVIIT 038/198" -lang en
 run add-name 10 -- -demo add -query "pikachu 25" -lang en
-run added 40 -- -add sv01-038,sv01-036,me01-001,sv01-037 -demo start -lang it
+# Skeledirge and Crocalor are evolutions, Golbat's damage is in its text, and Magikarp's attack does none
+run added 50 -- -add sv01-038,sv01-036,me01-001,sv01-037,sv03.5-042,sv03.5-129 -demo start -lang it
+wait_for added "added sv03.5-129" 90 || true
 run add-list 6 -- -demo add -lang en
 # Card pictures: every added card has its picture, and one that's gone is downloaded again when the app opens (Yanma's
 # didn't download on Jordan's iPad, 18 Oct, and nothing said so)
-n=$(grep -c "^\[insieme\] added .* picture ok" "$OUT/added.log" || true) # all four, not just none missing
-[ "$n" -eq 4 ] || { echo "only $n of 4 cards were added with their pictures:"; grep "added " "$OUT/added.log"; exit 1; }
+n=$(grep -c "^\[insieme\] added .* picture ok" "$OUT/added.log" || true) # all six, not just none missing
+[ "$n" -eq 6 ] || { echo "only $n of 6 cards were added with their pictures:"; grep "added " "$OUT/added.log"; exit 1; }
+# Any Pokémon with an attack that does damage battles, evolutions too (Jordan, 20 Oct: "he sometimes just wants to play")
+for want in "sv01-038 .*battles yes" "sv03.5-042 .*battles yes" "sv03.5-129 .*battles no"; do
+  grep -q "added $want" "$OUT/added.log" || { echo "added: expected $want:"; grep "added " "$OUT/added.log"; exit 1; }
+done
+# When a battle can't start, the parent's half says why, naming the card that can't battle ("it's not clear why the
+# battle won't start sometimes")
+run cantstart 6 -- -only sv01-036,sv03.5-042,sv03.5-129 -level 2 -lang en
+grep -q "can't start: .*Magikarp" "$OUT/cantstart.log" || { echo "cantstart: no reason given:"; grep "insieme" "$OUT/cantstart.log" | head; exit 1; }
+grep -h "can't start" "$OUT/cantstart.log"
+run mine-2 6 -- -level 2 -lang it # his cards, level 2: the start
 run repair 12 -- -breakpicture sv01-038 -demo start -lang en
 grep -q "repaired, all" "$OUT/repair.log" || { echo "a missing picture wasn't downloaded again:"; grep -E "breakpicture|pictures:" "$OUT/repair.log"; exit 1; }
 grep -hE "breakpicture|pictures:" "$OUT/repair.log"

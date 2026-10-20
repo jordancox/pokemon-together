@@ -48,6 +48,7 @@ struct Half: View {
                         .position(x: halfSize.width / 2, y: 230)
                         .opacity(game.coinOut ? 1 : 0)
                         .allowsHitTesting(false)
+                    if game.choosing == side && game.step == .battle { BenchPicker(game: game, side: side).transition(.opacity) }
                 }
                 .id(game.pictures) // redrawn when a missing card picture has downloaded
             }
@@ -73,8 +74,8 @@ struct Seam: View {
                         .font(.system(size: 16, weight: .heavy, design: .rounded))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10).frame(height: 34)
-                        .background(Capsule().fill(.white.opacity(game.cards.count < 2 ? 0.35 : 0.15)))
-                        .modifier(Pulse(on: game.cards.count < 2 && game.step == .pick))
+                        .background(Capsule().fill(.white.opacity(game.canStart ? 0.15 : 0.35)))
+                        .modifier(Pulse(on: !game.canStart && game.step == .pick))
                 }
                 .opacity(game.step == .pick ? 1 : 0.25)
                 .disabled(game.step != .pick)
@@ -88,7 +89,7 @@ struct Seam: View {
             .padding(.horizontal, 16)
             Pokeball(top: Kind.color(game.sides[1].card?.type), bottom: Kind.color(game.sides[0].card?.type))
                 .frame(width: 96, height: 96)
-                .modifier(Pulse(on: (game.step == .pick && game.cards.count > 1) || game.step == .over))
+                .modifier(Pulse(on: (game.step == .pick && game.canStart) || game.step == .over))
                 .contentShape(Circle())
                 .onTapGesture { game.ball() }
                 .onLongPressGesture(minimumDuration: 1.2) { game.quit() }

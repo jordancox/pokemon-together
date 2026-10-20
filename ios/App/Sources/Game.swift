@@ -2,24 +2,56 @@ import SwiftUI
 import UIKit
 import Observation
 
-// Level 1, the first battle: one Basic Pokémon each. A coin decides who starts. Each turn: one Energy, then an attack
-// (or DONE). Weakness doubles the damage, Resistance takes some off, and the first Pokémon knocked out loses. The real
-// rule that whoever goes first can't attack on their very first turn is kept. The app gives the Energy: one of the
-// type its next attack needs. Side 0 is the bottom half of the screen, side 1 the top.
+// Level 1, the first battle: one Pokémon each. A coin decides who starts. Each turn: one Energy, then an attack (or
+// DONE). Weakness doubles the damage, Resistance takes some off, and the first Pokémon knocked out loses. The real rule
+// that whoever goes first can't attack on their very first turn is kept. The app gives the Energy: one of the type its
+// next attack needs. Level 2, Team: three Pokémon each, one fighting and the others waiting on the bench; when one is
+// knocked out, its player chooses who comes in, and the first to lose the whole team loses. Level 3, Retreat: once a
+// turn, the fighting Pokémon can go back to the bench for one there, paying its retreat cost in Energy. Side 0 is the
+// bottom half of the screen, side 1 the top.
 
 enum Step { case pick, coin, battle, over }
 
-struct Side {
-    var card: Card?
+/// One Pokémon on the table: its card, the Energy on it and the damage it has taken (kept on the bench too).
+struct Mon {
+    var card: Card
     var energy: [String] = []
     var damage = 0
-    var gaveEnergy = false
+    var hp: Int { max(0, card.hp - damage) }
+}
+
+/// One player: their Pokémon (one in level 1, a team from level 2), which of them is fighting, and this turn so far.
+struct Side {
+    var team: [Mon] = []
+    var active = 0          // the one fighting; the rest wait on the bench
+    var gaveEnergy = false  // the Energy step is done this turn (one put on, or it needs no more)
+    var attached = false    // an Energy card went on this turn
+    var retreated = false   // level 3: once a turn
     var shield = false   // no damage during the opponent's next turn
     var reduce = 0       // this much less damage during the opponent's next turn
     var locked = false   // can't attack this turn
     var lockNext = false // can't attack during its next turn
-    var hp: Int { max(0, (card?.hp ?? 0) - damage) }
+
+    init(_ cards: [Card] = []) { team = cards.map { Mon(card: $0) } }
+
+    var card: Card? { team.indices.contains(active) ? team[active].card : nil }
+    var energy: [String] {
+        get { team.indices.contains(active) ? team[active].energy : [] }
+        set { if team.indices.contains(active) { team[active].energy = newValue } }
+    }
+    var damage: Int {
+        get { team.indices.contains(active) ? team[active].damage : 0 }
+        set { if team.indices.contains(active) { team[active].damage = newValue } }
+    }
+    var hp: Int { team.indices.contains(active) ? team[active].hp : 0 }
+    /// The team waiting behind the one fighting, not knocked out.
+    var bench: [Int] { team.indices.filter { $0 != active && team[$0].hp > 0 } }
+    /// Not knocked out yet, the one fighting included.
+    var left: Int { team.filter { $0.hp > 0 }.count }
 }
+
+/// Why a player is choosing a Pokémon from the bench.
+enum Why { case ko, retreat }
 
 /// A line of the game, written at the top of each half during the battle.
 struct Caption: Identifiable, Equatable {
@@ -50,10 +82,12 @@ struct Pop: Equatable {
     var pop: Pop?
     var banner: Int?       // "your turn!" over that side
     var zoom = [false, false]
+    var choosing: Int?     // the side choosing who comes in from its bench (its half shows them, to tap)
+    var nudge = 0          // bumped when the Poké Ball can't start a battle, to shake the reason why
     // The voice is off unless switched on (Jordan, 18 Oct 2026: "I'll be talking to him the whole time"); the parent's
     // half has the lines written out.
     var quiet = UserDefaults.standard.object(forKey: "quiet") == nil ? true : UserDefaults.standard.bool(forKey: "quiet")
-    var level = 1             // 1 practice battle; 2 and 3 aren't built yet
+    var level = min(max(UserDefaults.standard.integer(forKey: "level"), 1), Say.built) // the last one played
     var levelNote: String?    // said when a level that isn't built is tapped
     var pictures = 0          // bumped when card pictures that were missing have downloaded, to redraw
     var captions: [Caption] = []                            // this game's lines, written on the parent's half
@@ -69,6 +103,8 @@ struct Pop: Equatable {
     }
     private let trial = UserDefaults.standard.string(forKey: "demo") != nil || UserDefaults.standard.bool(forKey: "auto")
     @ObservationIgnored var told = Set<String>() // the longer explanations, said once each time the app opens
+    @ObservationIgnored var why = Why.ko
+    @ObservationIgnored var waiting: [Int] = [] // the sides still to bring a Pokémon in after a knockout
     @ObservationIgnored var popID = 0
     @ObservationIgnored var captionID = 0
     let fast = UserDefaults.standard.bool(forKey: "fast")
@@ -76,25 +112,62 @@ struct Pop: Equatable {
     func name(_ s: Int) -> String { sides[s].card?.name(lang) ?? "" }
     func card(_ id: String) -> Card? { cards.first { $0.id == id } }
 
+    /// How many Pokémon each player has: one in level 1; from level 2 a team of three (two when there are only four or
+    /// five cards).
+    var size: Int { level == 1 ? 1 : min(3, cards.count / 2) }
+    /// The cards a battle needs: one each in level 1, at least two each from level 2.
+    var need: Int { level == 1 ? 2 : 4 }
+    var canStart: Bool { cards.count >= need }
+    /// The parent's half before a battle: what this level is and what to tap, or plainly why it can't start yet
+    /// (Jordan, 20 Oct 2026: "it's not clear why the battle won't start sometimes").
+    func intro() -> String {
+        canStart ? Say.start(lang, level, size)
+            : Say.cantStart(lang, level: level, can: cards.count, need: need, added: mine.count,
+                            out: mine.filter { !$0.playable }.map { $0.name(lang) })
+    }
+
+    /// Said once the Poké Ball has chosen: who, and how to set the cards out.
+    func chosenLine() -> String {
+        level == 1 ? Say.chosen(lang, name(0), name(1)) + " " + Say.ready(lang) : Say.chosenTeam(lang) + " " + Say.setUpTeam(lang)
+    }
+
     func boot() {
         UIApplication.shared.isIdleTimerDisabled = true
         voice.lang = lang
         voice.fast = fast
         voice.quiet = quiet
-        note("\(cards.count) cards, language \(lang.rawValue)")
-        let demo = UserDefaults.standard.string(forKey: "demo") ?? ""
-        if demo == "ready", cards.count > 1 { // the Poké Ball has chosen
-            sides[0].card = card("sv03.5-025") ?? cards[0]
-            sides[1].card = card("sv03.5-004") ?? cards[1]
+        if let only = UserDefaults.standard.string(forKey: "only") { // the cloud Mac: as if only these were added (not saved)
+            let ids = Set(only.split(separator: ",").map(String.init))
+            mine = mine.filter { ids.contains($0.id) }
         }
-        if ["battle", "zoom", "over"].contains(demo), cards.count > 1 {
-            sides[0] = Side(card: card("sv03.5-025") ?? cards[0], energy: ["Lightning", "Lightning"], damage: 20)
-            sides[1] = Side(card: card("sv03.5-004") ?? cards[1], energy: ["Fire"], damage: 30)
+        note("\(cards.count) cards, language \(lang.rawValue), level \(level)")
+        if !canStart { note("can't start: \(intro())") }
+        let demo = UserDefaults.standard.string(forKey: "demo") ?? ""
+        if ["ready", "battle", "zoom", "over", "next"].contains(demo), canStart { // the Poké Ball has chosen
+            // the same Pokémon on every screenshot: Pikachu (and team) at the bottom, Charmander (and team) at the top
+            let ids = [["sv03.5-025", "sv03.5-074", "sv03.5-133"], ["sv03.5-004", "sv03.5-007", "sv03.5-001"]]
+            for s in [0, 1] {
+                let team = ids[s].prefix(size).compactMap(card)
+                sides[s] = Side(team.count == size ? team : Array(cards[(s * size)..<(s * size + size)]))
+            }
+        }
+        if ["battle", "zoom", "over", "next"].contains(demo), canStart {
+            sides[0].energy = ["Lightning", "Lightning"]
+            sides[0].damage = 20
+            sides[1].energy = ["Fire"]
+            sides[1].damage = 30
+            if size > 2 { sides[0].team[2].damage = sides[0].team[2].card.hp } // one of the parent's team already knocked out
             turns = 3
             step = .battle
             zoom[0] = demo == "zoom"
             if demo == "over" { winner = 0; step = .over }
             captions = [Caption(id: -2, text: Say.damage(lang, 30)), Caption(id: -1, text: Say.turnFirst(lang, name(0), "Lightning"))]
+            if demo == "next", size > 1 { // his Pokémon has just been knocked out: he chooses who comes in
+                sides[1].damage = sides[1].card?.hp ?? 0
+                why = .ko
+                choosing = 1
+                captions += [Caption(id: -4, text: Say.koTeam(lang, name(1))), Caption(id: -3, text: Say.whoNext(lang, name(1)))]
+            }
         }
         if demo == "add" { adding = true }
         if let ids = UserDefaults.standard.string(forKey: "add") { // the cloud Mac: add these cards as the add screen would
@@ -103,13 +176,13 @@ struct Pop: Equatable {
                     if case .ok(let c) = await TCGdex.fetch(String(id)) {
                         add(c)
                         _ = await TCGdex.finish(c)
-                        note("added \(c.id) picture \(Art.missing(c).isEmpty ? "ok" : "MISSING") \(c.name.en)/\(c.name.it) \(c.stage ?? "") \(c.hp) HP, " + c.attacks.map { "\($0.name.en) \($0.damage)\($0.mod ?? "") \($0.fx?.kind ?? "-")" }.joined(separator: "; "))
+                        note("added \(c.id) picture \(Art.missing(c).isEmpty ? "ok" : "MISSING") \(c.name.en)/\(c.name.it) \(c.stage ?? "") \(c.hp) HP, battles \(c.playable ? "yes" : "no"), " + c.attacks.map { "\($0.name.en) \($0.damage)\($0.mod ?? "") \($0.fx?.kind ?? "-")" }.joined(separator: "; "))
                     } else { note("could not add \(id)") }
                 }
             }
         }
         if UserDefaults.standard.bool(forKey: "auto") { Task { await autoplay() } }
-        else if step == .pick { speak(sides[0].card == nil ? Say.start(lang, cards.count) : Say.chosen(lang, name(0), name(1)) + " " + Say.ready(lang)) }
+        else if step == .pick { speak(sides[0].card == nil ? intro() : chosenLine()) }
         warm()
         if UserDefaults.standard.bool(forKey: "voicetest") { Task { await voiceTest() } }
         if UserDefaults.standard.bool(forKey: "scantest") { Task { await scanTest() } }
@@ -118,6 +191,7 @@ struct Pop: Equatable {
             note("breakpicture: removed \(id)'s pictures") // the cloud Mac: as if their download had failed
         }
         Task { await repairPictures() }
+        Task { await reread() }
         if UserDefaults.standard.bool(forKey: "prerender") { Task { await prerender() } }
     }
 
@@ -125,9 +199,10 @@ struct Pop: Equatable {
     /// comes back on; and on the cloud Mac, `prerender`). Each Pokémon's own are made when it's added or chosen.
     func warm() {
         let l = lang, z = "ZZ" // a stand-in name: sentences with a Pokémon's name in them are left for warm(card)
-        var lines = [Say.start(l, 0), Say.start(l, 1), Say.start(l, 2), Say.ready(l), Say.flip(l), Say.firstTurnRule(l), Say.canAttack(l),
-                     Say.notEnough(l), Say.oneEnergy(l), Say.energyFirst(l), Say.heads(l), Say.tails(l), Say.nothing(l),
-                     Say.coinTeach(l), Say.again(l), Say.language(l), Say.voiceOn(l), Say.chosen(l, z, z),
+        var lines = [Say.start(l, 1, 1), Say.start(l, 2, 3), Say.start(l, 3, 3), Say.ready(l), Say.flip(l), Say.firstTurnRule(l),
+                     Say.canAttack(l), Say.notEnough(l), Say.oneEnergy(l), Say.energyFirst(l), Say.heads(l), Say.tails(l),
+                     Say.nothing(l), Say.coinTeach(l), Say.again(l), Say.language(l), Say.voiceOn(l), Say.chosen(l, z, z),
+                     Say.chosenTeam(l), Say.setUpTeam(l), Say.oneRetreat(l), Say.noBench(l),
                      Say.notEnoughTeach(l, z, 1), Say.canAttackTeach(l, z), Say.leftTeach(l, z, 60, 20, 40)]
         lines += ["Grass", "Fire", "Water", "Lightning", "Psychic", "Fighting", "Darkness", "Metal", "Colorless"].map { Say.turn(l, z, $0) }
         lines += stride(from: 10, through: 200, by: 10).map { Say.damage(l, $0) }
@@ -137,6 +212,7 @@ struct Pop: Equatable {
     func warm(_ c: Card, _ when: Kokoro.When = .soon) {
         let l = lang, n = c.name(l)
         var lines = [Say.starts(l, n), Say.allEnergy(l, n), Say.ko(l, n), Say.wins(l, n), Say.wait(l, n)]
+        if level > 1 { lines += [Say.koTeam(l, n), Say.koLast(l, n), Say.comesIn(l, n), Say.teamWins(l, n), Say.whoNext(l, n)] }
         lines += Set(c.moves.flatMap(\.cost) + [c.type]).sorted().map { Say.turn(l, n, $0) }
         lines += c.moves.map { Say.uses(l, n, $0.name(l)) }
         lines += stride(from: c.hp - 10, to: 0, by: -10).map { Say.left(l, n, $0) }
@@ -202,11 +278,26 @@ struct Pop: Equatable {
         if fixed > 0 { pictures += 1 }
     }
 
+    /// Cards added before the app could play any of their attacks (Golbat's damage is written in its text): read again
+    /// each time the app opens, in case it can now.
+    func reread() async {
+        let old = mine.filter { !$0.playable }
+        guard !old.isEmpty else { return }
+        var now = 0
+        for c in old {
+            guard case .ok(let n) = await TCGdex.fetch(c.id), n.playable, let i = mine.firstIndex(where: { $0.id == c.id }) else { continue }
+            mine[i] = n
+            now += 1
+        }
+        note("reread: \(old.count) cards that couldn't battle, \(now) can now")
+        if now > 0 { Store.save(mine) }
+    }
+
     func setLang(_ l: Lang) {
         lang = l
         voice.lang = l
         UserDefaults.standard.set(l.rawValue, forKey: "lang")
-        speak(Say.language(l) + (step == .pick && sides[0].card == nil ? " " + Say.start(l, cards.count) : ""))
+        speak(Say.language(l) + (step == .pick && sides[0].card == nil ? " " + intro() : ""))
         warm()
         for c in sides.compactMap(\.card) { warm(c) }
     }
@@ -252,49 +343,67 @@ struct Pop: Equatable {
 
     func closeAdding() {
         adding = false
-        if step == .pick { sides = [Side(), Side()]; speak(Say.start(lang, cards.count)) } // the cards may have changed
+        if step == .pick { sides = [Side(), Side()]; speak(intro()) } // the cards may have changed
     }
 
     // MARK: Choosing
 
     func setLevel(_ n: Int) {
         guard step == .pick else { return }
-        levelNote = n == 1 ? nil : Say.levelSoon(lang)
         Sound.play("pop")
+        guard n <= Say.built else { levelNote = Say.levelSoon(lang); return }
+        levelNote = nil
+        level = n
+        UserDefaults.standard.set(n, forKey: "level")
+        sides = [Side(), Side()]
     }
 
     /// The Energy cards to put next to a Pokémon before the battle: exactly what its strongest attack needs (its own
-    /// type for a Colorless cost). Build 29 showed four for every Pokémon, which looked like a rule (Jordan: "why are
-    /// there four energy cards here").
+    /// type for a Colorless cost), and from level 3 enough to pay its retreat. Build 29 showed four for every Pokémon,
+    /// which looked like a rule (Jordan: "why are there four energy cards here").
     func energyFor(_ c: Card) -> [String] {
         let cost = (strongest(c)?.cost ?? []).map { $0 == "Colorless" ? c.type : $0 }
-        return cost.isEmpty ? [c.type] : cost
+        var e = cost.isEmpty ? [c.type] : cost
+        if level >= 3 { e += Array(repeating: c.type, count: max(0, c.retreat - e.count)) }
+        return e
     }
 
     func strongest(_ c: Card) -> Attack? { c.moves.max { $0.cost.count < $1.cost.count } }
 
-    /// Enough Energy for its strongest attack: no more ENERGY step, straight to attacking.
+    /// Enough Energy for its strongest attack (and from level 3, to retreat): no more ENERGY step, straight to attacking.
     func hasAll(_ s: Int) -> Bool {
-        guard let a = sides[s].card.flatMap(strongest) else { return true }
-        return canPay(a.cost, sides[s].energy)
+        guard let c = sides[s].card else { return true }
+        let attack = strongest(c).map { canPay($0.cost, sides[s].energy) } ?? true
+        return attack && (level < 3 || sides[s].energy.count >= c.retreat)
     }
 
-    /// The Poké Ball at the start: the app chooses a Pokémon for each player. The second has about the same HP as the
-    /// first, so it's a fair fight.
+    /// The Poké Ball at the start: the app chooses the Pokémon (Jordan, 17 Oct 2026: "we have no idea what cards to
+    /// choose"). One each in level 1, a team each from level 2. Each of the second player's has about the same HP as the
+    /// one it faces in the same place, so it's a fair fight; all different Pokémon when there are enough.
     func choose() {
-        guard step == .pick, !busy, cards.count > 1 else { return }
-        for s in [0, 1].shuffled() where sides[s].card == nil {
-            let other = sides[1 - s].card
-            var pool = cards.filter { $0.name.en != other?.name.en }
-            if pool.isEmpty { pool = cards.filter { $0.id != other?.id } }
-            guard let o = other else { sides[s].card = pool.randomElement(); continue }
-            let near = pool.filter { abs($0.hp - o.hp) <= 20 }
-            sides[s].card = (near.isEmpty ? Array(pool.sorted { abs($0.hp - o.hp) < abs($1.hp - o.hp) }.prefix(3)) : near).randomElement()
+        guard step == .pick, !busy, canStart else { return }
+        var pool = cards.shuffled(), a: [Card] = [], b: [Card] = []
+        func take(near o: Card?) -> Card? {
+            let used = Set((a + b).map(\.name.en))
+            var options = pool.filter { !used.contains($0.name.en) }
+            if options.isEmpty { options = pool }
+            var pick = options.first
+            if let o {
+                let close = options.filter { abs($0.hp - o.hp) <= 20 }
+                pick = (close.isEmpty ? Array(options.sorted { abs($0.hp - o.hp) < abs($1.hp - o.hp) }.prefix(3)) : close).randomElement()
+            }
+            pool.removeAll { $0.id == pick?.id }
+            return pick
         }
+        for _ in 0..<size {
+            if let c = take(near: nil) { a.append(c) }
+            if let c = take(near: a.last) { b.append(c) }
+        }
+        sides = Bool.random() ? [Side(a), Side(b)] : [Side(b), Side(a)]
         Sound.play("pop")
-        for c in sides.compactMap(\.card) { warm(c) }
-        note("chose \(name(0)) \(sides[0].card?.hp ?? 0) HP against \(name(1)) \(sides[1].card?.hp ?? 0) HP")
-        speak(Say.chosen(lang, name(0), name(1)) + " " + Say.ready(lang))
+        for side in sides { for m in side.team { warm(m.card) } }
+        note("chose " + [0, 1].map { s in sides[s].team.map { "\($0.card.name(lang)) \($0.card.hp) HP" }.joined(separator: ", ") }.joined(separator: " against "))
+        speak(chosenLine())
     }
 
     /// The Poké Ball in the middle: choose the Pokémon, start, say it again, or play again.
@@ -302,7 +411,11 @@ struct Pop: Equatable {
         switch step {
         case .pick:
             if sides.allSatisfy({ $0.card != nil }) { Task { await go() } }
-            else if cards.count < 2 { speak(Say.start(lang, cards.count)) }
+            else if !canStart { // the reason, shaken on the parent's half
+                Sound.play("pop")
+                withAnimation(.linear(duration: 0.5)) { nudge += 1 }
+                speak(intro())
+            }
             else { choose() }
         case .over: again()
         case .coin, .battle: if !quiet { speak(voice.last) }
@@ -314,7 +427,7 @@ struct Pop: Equatable {
         if step == .pick, sides[0].card != nil {
             sides = [Side(), Side()]
             Sound.play("pop")
-            speak(Say.start(lang, cards.count))
+            speak(intro())
             return
         }
         guard step == .battle, !busy else { return }
@@ -323,6 +436,8 @@ struct Pop: Equatable {
 
     func again() {
         winner = nil
+        choosing = nil
+        waiting = []
         zoom = [false, false]
         sides = [Side(), Side()]
         step = .pick
@@ -331,9 +446,9 @@ struct Pop: Equatable {
     }
 
     func go() async {
-        guard step == .pick, !busy, let a = sides[0].card, let b = sides[1].card else { return }
+        guard step == .pick, !busy, sides.allSatisfy({ $0.card != nil }) else { return }
         busy = true
-        sides = [Side(card: a), Side(card: b)]
+        sides = sides.map { Side($0.team.map(\.card)) }
         turns = 0
         winner = nil
         captions = [] // a fresh list of lines for each game
@@ -354,6 +469,8 @@ struct Pop: Equatable {
     func startTurn() async {
         let s = turn
         sides[s].gaveEnergy = false
+        sides[s].attached = false
+        sides[s].retreated = false
         sides[s].shield = false // these lasted through the opponent's turn
         sides[s].reduce = 0
         if sides[s].lockNext { sides[s].locked = true; sides[s].lockNext = false }
@@ -372,16 +489,22 @@ struct Pop: Equatable {
         let e = nextEnergy(s)
         if told.insert("energy").inserted { await say(Say.turnFirst(lang, name(s), e)) }
         else { await say(Say.turn(lang, name(s), e)) }
+        // level 3: the moment retreating matters, once
+        if level >= 3, let foe = sides[1 - s].card, sides[s].card?.weak == foe.type, !sides[s].bench.isEmpty,
+           told.insert("retreatTip").inserted {
+            await say(Say.retreatTip(lang, name(s), Kind.name(foe.type, lang)))
+        }
     }
 
     func giveEnergy(_ s: Int) async {
-        guard step == .battle, !busy else { return }
+        guard step == .battle, !busy, choosing == nil else { return }
         guard s == turn else { await say(Say.wait(lang, name(turn))); return }
         guard !sides[s].gaveEnergy else { await say(hasAll(s) ? Say.allEnergy(lang, name(s)) : Say.oneEnergy(lang)); return }
         let t = nextEnergy(s)
         withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
             sides[s].energy.append(t)
             sides[s].gaveEnergy = true
+            sides[s].attached = true
         }
         Sound.play("energy")
         if turns == 0 { await say(Say.firstTurnRule(lang)); return }
@@ -395,7 +518,7 @@ struct Pop: Equatable {
 
     /// DONE: the turn passes.
     func done(_ s: Int) async {
-        guard step == .battle, !busy else { return }
+        guard step == .battle, !busy, choosing == nil else { return }
         guard s == turn else { await say(Say.wait(lang, name(turn))); return }
         guard sides[s].gaveEnergy else { await say(Say.energyFirst(lang)); return }
         await endTurn()
@@ -440,7 +563,7 @@ struct Pop: Equatable {
     // MARK: Attacking
 
     func attack(_ s: Int, _ i: Int) async {
-        guard step == .battle, !busy, let me = sides[s].card, i < me.moves.count, let foe = sides[1 - s].card else { return }
+        guard step == .battle, !busy, choosing == nil, let me = sides[s].card, i < me.moves.count, let foe = sides[1 - s].card else { return }
         let a = me.moves[i]
         guard s == turn else { await say(Say.wait(lang, name(turn))); return }
         guard sides[s].gaveEnergy else { await say(Say.energyFirst(lang)); return }
@@ -471,16 +594,17 @@ struct Pop: Equatable {
         case "plusFoeCounters": dmg += each * (sides[f].damage / 10)
         case "plusOwnCounters": dmg += each * (sides[s].damage / 10)
         case "plusOwnEnergy": dmg += each * sides[s].energy.count
+        case "hit", "counters": dmg = a.power // the damage written in its text, on the fighting Pokémon
         default: break
         }
         var weak = false, resisted = false, shielded = false, toughened = false
-        if dmg > 0 && kind != "noWeakness" {
+        if dmg > 0 && kind != "noWeakness" && kind != "counters" { // damage counters aren't affected by Weakness
             if foe.weak == me.type { dmg *= 2; weak = true }
             if foe.resist == me.type { dmg = max(0, dmg - (foe.resistBy ?? 30)); resisted = true }
         }
         let before = dmg // after Weakness and Resistance, before the defender's own protection
         if dmg > 0 && sides[f].shield { dmg = 0; shielded = true }
-        if dmg > 0 && sides[f].reduce > 0 { dmg = max(0, dmg - sides[f].reduce); toughened = true }
+        if dmg > 0 && sides[f].reduce > 0 && kind != "counters" { dmg = max(0, dmg - sides[f].reduce); toughened = true }
 
         // The hit
         withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) { lunge = s }
@@ -548,8 +672,8 @@ struct Pop: Equatable {
         default: break
         }
 
-        if sides[f].hp == 0 { await knockOut(f); return }
-        if sides[s].hp == 0 { await knockOut(s); return } // it hurt itself too much
+        let downs = [f, s].filter { sides[$0].hp == 0 } // s: it hurt itself too much
+        if !downs.isEmpty { await knockedOut(downs, by: s); return }
         if dmg > 0 {
             if told.insert("count").inserted { await say(Say.leftTeach(lang, name(f), foe.hp, sides[f].damage, sides[f].hp)) }
             else { await say(Say.left(lang, name(f), sides[f].hp)) }
@@ -558,17 +682,119 @@ struct Pop: Equatable {
         await endTurn()
     }
 
-    private func knockOut(_ k: Int) async {
-        Sound.play("ko")
-        winner = 1 - k
-        note("KO: \(name(k)); \(name(1 - k)) wins after \(turns + 1) turns")
-        await say(Say.ko(lang, name(k)))
+    /// After an attack: each side whose Pokémon was knocked out brings in the next from its bench, or, with none left,
+    /// loses. When both run out at once, the attacker wins (as in level 1).
+    private func knockedOut(_ downs: [Int], by s: Int) async {
+        for k in downs {
+            Sound.play("ko")
+            note("KO: \(name(k)), \(sides[k].left) left on that side")
+            await say(level == 1 ? Say.ko(lang, name(k)) : sides[k].left > 0 ? Say.koTeam(lang, name(k)) : Say.koLast(lang, name(k)))
+        }
+        if let k = [1 - s, s].first(where: { sides[$0].left == 0 }) { await win(1 - k); return }
+        waiting = downs
+        busy = false
+        await nextIn()
+    }
+
+    private func win(_ w: Int) async {
+        winner = w
+        note("win: \(name(w)) after \(turns + 1) turns")
         withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { step = .over }
         busy = false
         Sound.play("win")
         await pause(0.6)
-        await say(Say.wins(lang, name(1 - k)))
+        await say(level == 1 ? Say.wins(lang, name(w)) : Say.teamWins(lang, name(w)))
         note("log: \(captions.count) lines kept at the end") // the cloud Mac checks the end screen keeps them
+    }
+
+    // MARK: The bench (from level 2)
+
+    /// The next side that has lost its fighting Pokémon brings one in: by itself when only one is left on the bench,
+    /// else that player taps one on their half. Then the turn passes.
+    private func nextIn() async {
+        guard let k = waiting.first else { await endTurn(); return }
+        let bench = sides[k].bench
+        if bench.count == 1 {
+            waiting.removeFirst()
+            await comeIn(k, bench[0])
+            await nextIn()
+            return
+        }
+        why = .ko
+        choosing = k
+        await say(Say.whoNext(lang, name(k)))
+    }
+
+    /// Tapping a Pokémon on the bench, when that side is choosing who comes in.
+    func pick(_ k: Int, _ i: Int) async {
+        guard choosing == k, !busy, sides[k].bench.contains(i) else { return }
+        choosing = nil
+        switch why {
+        case .ko:
+            waiting.removeAll { $0 == k }
+            await comeIn(k, i)
+            await nextIn()
+        case .retreat:
+            await retreatTo(k, i)
+        }
+    }
+
+    /// Tapping away from the bench: a retreat not wanted after all (after a knockout someone has to come in).
+    func cancelPick() {
+        guard why == .retreat, choosing != nil else { return }
+        choosing = nil
+    }
+
+    private func comeIn(_ k: Int, _ i: Int) async {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            sides[k].active = i
+            sides[k].locked = false
+            sides[k].lockNext = false
+        }
+        Sound.play("pop")
+        note("in: \(name(k)) \(sides[k].hp) HP")
+        await say(Say.comesIn(lang, name(k)))
+    }
+
+    func canRetreat(_ s: Int) -> Bool {
+        level >= 3 && !sides[s].retreated && !sides[s].bench.isEmpty && sides[s].energy.count >= (sides[s].card?.retreat ?? 0)
+    }
+
+    /// RETREAT (level 3): the fighting Pokémon goes back to the bench and another comes in. It costs as many Energy
+    /// cards as the circles next to "retreat" at the bottom of its card. Once a turn; its damage stays with it.
+    func retreat(_ s: Int) async {
+        guard level >= 3, step == .battle, !busy, choosing == nil else { return }
+        guard s == turn else { await say(Say.wait(lang, name(turn))); return }
+        guard !sides[s].retreated else { await say(Say.oneRetreat(lang)); return }
+        let bench = sides[s].bench
+        guard !bench.isEmpty else { await say(Say.noBench(lang)); return }
+        let cost = sides[s].card?.retreat ?? 0
+        if told.insert("retreat").inserted { await say(Say.retreatTeach(lang, name(s), cost)) }
+        guard sides[s].energy.count >= cost else { await say(Say.retreatCost(lang, name(s), cost, sides[s].energy.count)); return }
+        if bench.count == 1 { await retreatTo(s, bench[0]); return }
+        why = .retreat
+        choosing = s
+        await say(Say.whoIn(lang, name(s)))
+    }
+
+    private func retreatTo(_ s: Int, _ i: Int) async {
+        let out = name(s), was = sides[s].active, cost = sides[s].card?.retreat ?? 0
+        let paid = Array(sides[s].energy.suffix(cost))
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            sides[s].energy.removeLast(min(cost, sides[s].energy.count))
+            sides[s].active = i
+            sides[s].locked = false // what an attack did to it ends when it leaves
+            sides[s].lockNext = false
+            sides[s].retreated = true
+        }
+        sides[s].gaveEnergy = sides[s].attached || hasAll(s) // the one that came in may need Energy
+        Sound.play("whoosh")
+        note("retreat: \(out) for \(name(s)), \(cost) Energy")
+        await say(Say.retreated(lang, out, name(s), paid, kept: sides[s].team[was].energy.count))
+        if !sides[s].gaveEnergy { await say(Say.putOn(lang, name(s), nextEnergy(s))) }
+        else if turns == 0 { await say(Say.firstTurnRule(lang)) }
+        else if usable(s).isEmpty { await say(Say.notEnough(lang)) }
+        else { await say(Say.canAttack(lang)) }
     }
 
     // MARK: The coin
@@ -615,21 +841,29 @@ struct Pop: Equatable {
     }
 
     /// -auto (the cloud Mac): two random Pokémon play a whole game by themselves.
+    /// From level 2 a knocked-out Pokémon's place goes to the first on the bench; in level 3 each side retreats once
+    /// early on (so the cloud Mac's games show it) and when its Pokémon is down to half its HP.
     func autoplay() async {
-        guard cards.count > 1 else { return }
+        guard canStart else { return }
         await pause(1)
         choose()
         await pause(0.5)
         await go()
-        var moves = 0
-        while step == .battle && moves < 80 {
+        var moves = 0, retreats = [0, 0]
+        while step == .battle && moves < 300 {
             moves += 1
-            await pause(fast ? 0.4 : 1.2)
+            await pause(fast ? 0.3 : 1.2)
+            if let k = choosing, let i = sides[k].bench.first { await pick(k, i); continue }
             let s = turn
             await giveEnergy(s)
-            await pause(0.4)
+            await pause(fast ? 0.2 : 0.4)
+            if canRetreat(s), retreats[s] == 0 || (sides[s].hp * 2 < (sides[s].card?.hp ?? 0) && retreats[s] < 3) {
+                retreats[s] += 1
+                await retreat(s)
+                if choosing == s, let i = sides[s].bench.first { await pick(s, i) }
+            }
             if turns > 0, !sides[s].locked, let i = usable(s).last { await attack(s, i) } else { await done(s) }
         }
-        note("auto: finished, winner \(winner.map { name($0) } ?? "none")")
+        note("auto: finished, winner \(winner.map { name($0) } ?? "none") after \(moves) moves")
     }
 }

@@ -9,17 +9,25 @@ pictures, numbers and single words. The app knows your cards and chooses a fair 
 count. A voice can read the lines aloud, but it's off to start with: the parent does the talking.
 
 The game is learned in levels, each adding one thing from the real game: 1 Practice battle, 2 Team, 3 Retreat,
-4 Evolution, 5 Your hand, 6 Prize cards, 7 Trainers, 8 Full game. Level 1 is built so far.
+4 Evolution, 5 Your hand, 6 Prize cards, 7 Trainers, 8 Full game. Levels 1 to 3 are built so far. Any Pokémon card
+with an attack that does damage can battle, evolved ones too (on their own, as if they were Basic, until level 4).
 
 The voice, when on, is [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) (Apache 2.0), run on the iPad itself by
 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache 2.0), which uses espeak-ng to sound out the words. The
 iPad's own voice takes over if Kokoro can't run.
 
-**Level 1, the first battle:** one Basic Pokémon each, with some Energy cards beside it. A coin decides who starts.
+**Level 1, the first battle:** one Pokémon each, with some Energy cards beside it. A coin decides who starts.
 Each turn you put one Energy card on your Pokémon, then attack or tap DONE. Weakness doubles the damage, Resistance
 takes some off, and the first Pokémon knocked out loses. It plays each attack's printed damage plus the common effects
-(coin flips, healing, extra Energy, self-damage, protection). Bench, drawing cards, prize cards, Evolution and Trainers
-come in the later levels.
+(coin flips, healing, extra Energy, self-damage, protection, damage written in the text). Drawing cards, prize cards,
+Evolution and Trainers come in the later levels.
+
+**Level 2, Team:** three Pokémon each. One fights; the others wait behind it, on the bench. When one is knocked out,
+its player taps who comes in next, and whoever knocks out the other's whole team wins.
+
+**Level 3, Retreat:** the same teams, and once a turn the fighting Pokémon can retreat to the bench and let another
+come in. It costs as many Energy cards as the circles next to "retreat" at the bottom of its card; its damage stays
+with it.
 
 ## The cards
 

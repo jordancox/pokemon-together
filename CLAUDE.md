@@ -19,15 +19,16 @@ say what it is and what to do next. Send Jordan the screens in order, one line e
 his side upside down is impossible… make parent side less distracting and with instructions for me to follow. He gets
 single word type stuff on his side"). The bottom half (side 0, `parentSide`) is the parent's: dark grey, nothing
 pulsing, the instructions written out in sentences to read and pass on. The top half (side 1, `childSide`), turned to
-face him, has pictures, numbers and single words (READY?, his Pokémon, ENERGY, the attacks, DONE, YOUR TURN!, YOU
-WIN!). **The voice is off** unless switched on: Jordan does the talking.
+face him, has pictures, numbers and single words (READY?, his Pokémon, ENERGY, the attacks, DONE, RETREAT, WHO?, YOUR
+TURN!, YOU WIN!). **The voice is off** unless switched on: Jordan does the talking.
 
 **Levels, laddered up by hand** (Jordan, 18 Oct: "Practice battle. More complex. Full sim. We can manually ladder up
 as we learn the mechanics… up to like level 5? level 10?"). Each adds one thing from the real game (`Say.level`):
-1 Practice battle (one Pokémon each, Energy, attacks: **the only one built**), 2 Team (three Pokémon each, the next
-comes in after a KO), 3 Retreat, 4 Evolution, 5 Your hand (a deck each, draw and play), 6 Prize cards, 7 Trainers,
-8 Full game (special conditions, abilities, all the rules). The parent picks the level on the start screen; the ones
-not built say so. Build the next level only when Jordan asks.
+1 Practice battle (one Pokémon each, Energy, attacks), 2 Team (three Pokémon each, one fighting and the rest on the
+bench; after a KO its player taps who comes in), 3 Retreat (RETREAT, once a turn, pays the card's retreat cost in
+Energy), 4 Evolution, 5 Your hand (a deck each, draw and play), 6 Prize cards, 7 Trainers, 8 Full game (special
+conditions, abilities, all the rules). **1 to 3 are built** (`Say.built`; 2 and 3 on 20 Oct 2026). The parent picks
+the level on the start screen (remembered); the ones not built say so. Build the next level only when Jordan asks.
 
 @README.md
 
@@ -40,12 +41,16 @@ not built say so. Build the next level only when Jordan asks.
   (letters, never flags: Jordan is Canadian), CARDS (your cards, before a battle) and the voice switch.
 - **The app chooses the Pokémon** (Jordan, 17 Oct: "we have no idea what cards to choose… we do not know any rules
   here"): the first Poké Ball tap picks a fair pair from your cards that can play (`choose`: about the same HP). The
-  child's half shows his card, big; the parent's shows both, with the four Energy cards to put next to each
+  child's half shows his card, big; the parent's shows both, with the Energy cards to put next to each
   (`energyFor`). There is no grid of cards on the halves (build 20 had one on both and it read as two hands). Nothing
   may assume they know a rule or a card part: the lines say what an Energy card looks like and its colour
   (`Say.energyLook`), where things go ("under Pikachu's card"), and explain HP at the first damage.
-- `Game.swift` has the rules (level 1, see README) and the whole turn flow. The ENERGY button means "I put an Energy
-  card on it", and the voice names the type to put on (`nextEnergy`). The first-time explanations are the
+- `Game.swift` has the rules (levels 1–3, see README) and the whole turn flow. A `Side` is a team of `Mon`s (card,
+  Energy, damage) and the one fighting (`active`). From level 2 the Poké Ball chooses three each (two with only four or
+  five cards), each about the HP of the one it faces; the child's half shows the fighter at the top, by the middle of
+  the table, and the bench behind it, as on the table. The bench shows beside the HP on both halves; a knockout with two
+  left on the bench puts them big on that half (`BenchPicker`, CHI? / WHO? on the child's) to tap. The ENERGY button
+  means "I put an Energy card on it", and the voice names the type to put on (`nextEnergy`). The first-time explanations are the
   `told` keys (energy, cost, attack, coin, weak, count), once each time the app opens. Everything said goes through
   `Game.say`: written at the top of the parent's half (the last two lines), and spoken by `Voice` when the voice is
   on. `Say.swift` has every line, Italian first.
@@ -60,8 +65,13 @@ not built say so. Build the next level only when Jordan asks.
   espeak-ng first.
 - Cards: `cards.txt` → `tools/cards.py` → `ios/App/Data/cards.json` (TCGdex, IT and EN). Effects are read from the
   English text by the `EFFECTS` patterns. An effect that isn't matched is `skip`: the attack does only its damage, and
-  an attack with no damage is hidden. Check the "effect not played" list it prints when adding cards. Level 1 only
-  plays Basic Pokémon with a damaging attack.
+  an attack with no damage is hidden. Check the "effect not played" list it prints when adding cards. **Any Pokémon
+  with an attack that does damage battles**, at every level: evolutions too, on their own as if Basic (Jordan, 20 Oct
+  2026: "he sometimes just wants to play"), and damage written in the text (`hit`: Golbat's "40 damage to 1 of your
+  opponent's Pokémon", on the fighting one; `counters`: Mr. Mime's damage counters). Cards added before a rule existed
+  are read again when the app opens (`Game.reread`). A bench-only attack (Moltres 151) or a copied one (Mew ex) can't
+  play yet. **When a battle can't start, the parent's half says why** in yellow (`Game.intro`, `Say.cantStart`): how
+  many cards the level needs, how many of yours can battle, which can't, and what to do.
 - Card pictures are never committed (public repo). The cloud Mac runs `tools/cards.py art` into `ios/build/Cards`
   before each build. Sprites (PokeAPI, Jordan's OK on 17 Oct) are committed in `ios/App/Sprites`.
 - **Your cards are added in the app** (Jordan, 17 Oct: doing it through Claude was "outside the app… bit clunky"):
@@ -90,6 +100,11 @@ first real games teach, here, before building the next level.
 - Level 1, build 31 (18 Oct, first real game, Heatran won): lines came faster than Jordan could read them out, and the
   end screen dropped the Weakness explanation. The parent's half keeps every line of the game, scrollable, through
   the end screen (`LogView`). Four Energy cards for every Pokémon looked like a rule: show exactly what's needed.
+- Level 1, build 38 (20 Oct): his evolved cards were kept "for a later level", so the Poké Ball sometimes did
+  nothing and nothing said why ("it's not clear why the battle won't start sometimes"). A child wants to play with the
+  cards he likes: every Pokémon that can do damage battles, and whatever stops a battle starting is said in plain
+  words where the parent is looking. CI: added evolutions must say "battles yes", and a too-small box must name the
+  card that can't battle.
 
 ## Building and shipping
 

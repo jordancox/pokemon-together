@@ -28,8 +28,17 @@ struct Attack: Codable {
     let fx: Effect?
     /// In the game: it does damage, or something the app knows how to play.
     var shown: Bool { damage > 0 || (fx != nil && fx?.kind != "skip") }
-    /// As printed on the card: "50", "20+", "10×", or nothing.
-    var label: String { damage > 0 ? "\(damage)\(mod ?? "")" : "" }
+    /// The damage it does: printed, or written in its text (Golbat's "does 40 damage to 1 of your opponent's Pokémon",
+    /// Mr. Mime's "Put 3 damage counters…").
+    var power: Int {
+        switch fx?.kind {
+        case "hit": fx?.n ?? 0
+        case "counters": 10 * (fx?.n ?? 0)
+        default: damage
+        }
+    }
+    /// As printed on the card: "50", "20+", "10×"; the damage in its text; or nothing.
+    var label: String { damage > 0 ? "\(damage)\(mod ?? "")" : power > 0 ? "\(power)" : "" }
 }
 
 struct Card: Codable, Identifiable {
@@ -47,8 +56,10 @@ struct Card: Codable, Identifiable {
     let img: [String: String]
 
     var moves: [Attack] { attacks.filter(\.shown) }
-    /// Level 1 plays Basic Pokémon with at least one attack that does damage.
-    var playable: Bool { stage == "Basic" && moves.contains { $0.damage > 0 } }
+    /// Any Pokémon with an attack that does damage battles, at every level. Evolution cards too, on their own as if they
+    /// were Basic (Jordan, 20 Oct 2026: "he sometimes just wants to play"; build 38 kept them for level 4, so a box of
+    /// his cards could still not start a battle).
+    var playable: Bool { moves.contains { $0.power > 0 } }
 
     static let all: [Card] = {
         guard let url = Bundle.main.url(forResource: "cards", withExtension: "json", subdirectory: "Data"),
