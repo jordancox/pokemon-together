@@ -198,7 +198,7 @@ struct BattleView: View {
                     .overlay(alignment: .topTrailing) { if me.damage > 0 { DamageBadge(n: me.damage) } }
                     .onTapGesture { game.read(side) }
                 Controls(game: game, side: side, calm: isParent)
-                    .opacity(mine ? 1 : 0.45)
+                    .opacity(mine && game.choosing == nil ? 1 : 0.45) // waiting for someone to come in from the bench
             }
             .padding(.horizontal, 24)
             .frame(height: 355, alignment: .top)

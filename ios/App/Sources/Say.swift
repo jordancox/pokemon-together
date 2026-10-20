@@ -14,7 +14,8 @@ enum Say {
     // The child's half: one word. The parent's: the level, and what to do.
     static func readyWord(_ l: Lang) -> String { t(l, "PRONTO?", "READY?") }
     static func whoWord(_ l: Lang) -> String { t(l, "CHI?", "WHO?") }
-    static func retreatWord(_ l: Lang) -> String { t(l, "RITIRATA", "RETREAT") } // the word printed on the card
+    /// The retreat button: not the card's word, which in Italian is also Squirtle's attack (Withdraw, "Ritirata")
+    static func retreatWord(_ l: Lang) -> String { t(l, "CAMBIA", "SWAP") }
     static func chooseLevel(_ l: Lang) -> String { t(l, "LIVELLO", "LEVEL") }
     /// The levels, laddered up by hand as you learn (Jordan, 18 Oct: "Practice battle… up to like level 5? level 10? I
     /// don't know how many steps till we master it"). Each adds one thing from the real game; 8 is all of it.
@@ -66,8 +67,8 @@ enum Say {
                          "Practice battle! One Pokémon each. Take turns: put on an Energy card, then attack. Knock out the other Pokémon to win. Tap the Poké Ball and I'll choose a Pokémon for each of you.")
         case 2: return t(l, "Squadra! \(n) Pokémon a testa. Ne combatte uno alla volta: gli altri aspettano dietro, in panchina. Quando uno va KO, entra il prossimo. Vince chi manda KO tutta la squadra dell'altro. Toccate la Poké Ball: scelgo io una squadra per ognuno.",
                          "Team! \(n) Pokémon each. One fights at a time; the others wait behind it, on the bench. When one is knocked out, the next comes in. Knock out the other's whole team to win. Tap the Poké Ball and I'll choose a team for each of you.")
-        default: return t(l, "Ritirata! Squadre di \(n.lowercased()) Pokémon, come nel livello 2. In più, nel tuo turno puoi ritirare il Pokémon che combatte: torna in panchina ed entra un altro. Costa Energia. Toccate la Poké Ball: scelgo io una squadra per ognuno.",
-                          "Retreat! Teams of \(n.lowercased()) Pokémon, as in level 2. And now, on your turn, you can retreat the Pokémon that's fighting: it goes back to the bench and another comes in. It costs Energy. Tap the Poké Ball and I'll choose a team for each of you.")
+        default: return t(l, "Ritirata! Squadre di \(n.lowercased()) Pokémon, come nel livello 2. In più, nel tuo turno puoi ritirare il Pokémon che combatte (CAMBIA): torna in panchina ed entra un altro. Costa Energia. Toccate la Poké Ball: scelgo io una squadra per ognuno.",
+                          "Retreat! Teams of \(n.lowercased()) Pokémon, as in level 2. And now, on your turn, you can retreat the Pokémon that's fighting (SWAP): it goes back to the bench and another comes in. It costs Energy. Tap the Poké Ball and I'll choose a team for each of you.")
         }
     }
     /// Why the Poké Ball can't start a battle yet, in plain words: how many cards it needs, how many of yours can battle,
@@ -222,8 +223,8 @@ enum Say {
     static func teamWins(_ l: Lang, _ n: String) -> String { t(l, "Vince la squadra di \(n)! Bella partita!", "\(n)'s team wins! Great game!") }
     // Retreat (level 3)
     static func retreatTeach(_ l: Lang, _ n: String, _ cost: Int) -> String {
-        t(l, "Ritirata: \(n) torna in panchina e un altro Pokémon prende il suo posto. Guarda in basso sulla carta di \(n), accanto a «ritirata»: ogni cerchio è una carta Energia da togliere." + (cost == 0 ? " Non ci sono cerchi: è gratis." : ""),
-          "Retreat: \(n) goes back to the bench and another Pokémon takes its place. Look at the bottom of \(n)'s card, next to \"retreat\": each circle is one Energy card to take off." + (cost == 0 ? " There are none: it's free." : ""))
+        t(l, "CAMBIA è la ritirata: \(n) torna in panchina e un altro Pokémon prende il suo posto. Costa Energia: guarda in basso sulla carta di \(n), accanto a «ritirata». Ogni cerchio è una carta Energia da togliere." + (cost == 0 ? " Non ci sono cerchi: è gratis." : ""),
+          "SWAP is a retreat: \(n) goes back to the bench and another Pokémon takes its place. It costs Energy: look at the bottom of \(n)'s card, next to \"retreat\". Each circle is one Energy card to take off." + (cost == 0 ? " There are none: it's free." : ""))
     }
     static func retreatCost(_ l: Lang, _ n: String, _ k: Int, _ have: Int) -> String {
         t(l, "Per ritirarsi \(n) ha bisogno di \(k) Energi\(k == 1 ? "a" : "e"): ne ha \(have).", "\(n) needs \(k) Energy to retreat: it has \(have).")
@@ -251,8 +252,8 @@ enum Say {
         return s
     }
     static func retreatTip(_ l: Lang, _ n: String, _ type: String) -> String {
-        t(l, "Attenzione: \(n) teme il tipo \(type), che gli fa danni doppi. Con RITIRATA puoi mandarlo in panchina.",
-          "Careful: \(n) is weak to \(type), which does double damage to it. RETREAT can send it back to the bench.")
+        t(l, "Attenzione: \(n) teme il tipo \(type), che gli fa danni doppi. Con CAMBIA puoi mandarlo in panchina.",
+          "Careful: \(n) is weak to \(type), which does double damage to it. SWAP can send it back to the bench.")
     }
     static func coinTeach(_ l: Lang) -> String { t(l, "Questo attacco dice di lanciare una moneta. La lancio io!", "This attack says to flip a coin. I'll flip it!") }
     static func wins(_ l: Lang, _ n: String) -> String { t(l, "Vince \(n)! Bella partita!", "\(n) wins! Great game!") }

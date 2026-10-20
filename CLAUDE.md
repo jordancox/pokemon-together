@@ -19,16 +19,17 @@ say what it is and what to do next. Send Jordan the screens in order, one line e
 his side upside down is impossible… make parent side less distracting and with instructions for me to follow. He gets
 single word type stuff on his side"). The bottom half (side 0, `parentSide`) is the parent's: dark grey, nothing
 pulsing, the instructions written out in sentences to read and pass on. The top half (side 1, `childSide`), turned to
-face him, has pictures, numbers and single words (READY?, his Pokémon, ENERGY, the attacks, DONE, RETREAT, WHO?, YOUR
+face him, has pictures, numbers and single words (READY?, his Pokémon, ENERGY, the attacks, DONE, SWAP, WHO?, YOUR
 TURN!, YOU WIN!). **The voice is off** unless switched on: Jordan does the talking.
 
 **Levels, laddered up by hand** (Jordan, 18 Oct: "Practice battle. More complex. Full sim. We can manually ladder up
 as we learn the mechanics… up to like level 5? level 10?"). Each adds one thing from the real game (`Say.level`):
 1 Practice battle (one Pokémon each, Energy, attacks), 2 Team (three Pokémon each, one fighting and the rest on the
-bench; after a KO its player taps who comes in), 3 Retreat (RETREAT, once a turn, pays the card's retreat cost in
-Energy), 4 Evolution, 5 Your hand (a deck each, draw and play), 6 Prize cards, 7 Trainers, 8 Full game (special
-conditions, abilities, all the rules). **1 to 3 are built** (`Say.built`; 2 and 3 on 20 Oct 2026). The parent picks
-the level on the start screen (remembered); the ones not built say so. Build the next level only when Jordan asks.
+bench; after a KO its player taps who comes in), 3 Retreat (SWAP / CAMBIA, once a turn, pays the card's retreat cost
+in Energy; not RETREAT / RITIRATA, which in Italian is also Squirtle's attack), 4 Evolution, 5 Your hand (a deck each,
+draw and play), 6 Prize cards, 7 Trainers, 8 Full game (special conditions, abilities, all the rules). **1 to 3 are
+built** (`Say.built`; 2 and 3 on 20 Oct 2026). The parent picks the level on the start screen (remembered); the ones
+not built say so. Build the next level only when Jordan asks.
 
 @README.md
 

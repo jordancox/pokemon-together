@@ -16,3 +16,6 @@ __pycache__/
 /*.JPG
 /*.jpeg
 /*.HEIC
+
+# check output (screenshots downloaded from the cloud Mac)
+.cache/

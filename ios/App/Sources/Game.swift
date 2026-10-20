@@ -760,7 +760,7 @@ struct Pop: Equatable {
         level >= 3 && !sides[s].retreated && !sides[s].bench.isEmpty && sides[s].energy.count >= (sides[s].card?.retreat ?? 0)
     }
 
-    /// RETREAT (level 3): the fighting Pokémon goes back to the bench and another comes in. It costs as many Energy
+    /// SWAP (level 3, a retreat): the fighting Pokémon goes back to the bench and another comes in. It costs as many Energy
     /// cards as the circles next to "retreat" at the bottom of its card. Once a turn; its damage stays with it.
     func retreat(_ s: Int) async {
         guard level >= 3, step == .battle, !busy, choosing == nil else { return }
