@@ -30,7 +30,8 @@ def b64(b): return base64.urlsafe_b64encode(b).rstrip(b'=').decode()
 def token():
     now = int(time.time())
     head = b64(json.dumps({'alg': 'ES256', 'kid': KID, 'typ': 'JWT'}).encode())
-    body = b64(json.dumps({'iss': ISS, 'iat': now, 'exp': now + 15 * 60, 'aud': 'appstoreconnect-v1'}).encode())
+    # issued a minute back: a cloud Mac whose clock runs ahead would otherwise send a token from the future (refused)
+    body = b64(json.dumps({'iss': ISS, 'iat': now - 60, 'exp': now + 15 * 60, 'aud': 'appstoreconnect-v1'}).encode())
     der = subprocess.run(['openssl', 'dgst', '-sha256', '-sign', KEY], input=f'{head}.{body}'.encode(),
                          capture_output=True, check=True).stdout
     # openssl gives the signature as DER (SEQUENCE of two INTEGERs); a JWT wants r and s as 32 bytes each
@@ -44,9 +45,12 @@ def call(method, path, body=None):
                                  data=json.dumps(body).encode() if body is not None else None,
                                  headers={'Authorization': f'Bearer {token()}', 'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(req) as r: return r.status, json.loads(r.read() or b'{}')
+        with urllib.request.urlopen(req, timeout=60) as r: return r.status, json.loads(r.read() or b'{}')
     except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read() or b'{}')
+        try: return e.code, json.loads(e.read() or b'{}')
+        except ValueError: return e.code, {}
+    except (urllib.error.URLError, TimeoutError) as e:
+        return 0, {'error': str(e)}
 
 def revoke_dev_certs():
     """By hand only, if Apple's limit of ten development certificates is ever full again. Before 9 Oct each cloud Mac
@@ -62,8 +66,16 @@ def revoke_dev_certs():
             print('revoked' if s == 204 else f'not revoked ({s})', c['id'], c['attributes']['expirationDate'][:10])
 
 def accepted(bundle, build, minutes=20):
-    s, o = call('GET', f'/v1/apps?filter[bundleId]={bundle}')
-    if s != 200 or not o.get('data'): sys.exit(f'no app record for {bundle} ({s})')
+    # A refused token or a hiccup is no verdict on the build: one 401 on the cloud Mac failed Insieme's build 41 as if
+    # Apple had refused it (20 Oct 2026), while the same key worked from the VM. Tried again; then "not known" (2).
+    for _ in range(5):
+        s, o = call('GET', f'/v1/apps?filter[bundleId]={bundle}')
+        if s == 200: break
+        time.sleep(20)
+    if s != 200:
+        print(f'App Store Connect answered {s or "nothing"} five times ({o.get("errors") or o.get("error") or ""}): no verdict on build {build}')
+        return 2
+    if not o.get('data'): sys.exit(f'no app record for {bundle}')
     app, end = o['data'][0]['id'], time.time() + minutes * 60
     while True:
         s, o = call('GET', f'/v1/apps/{app}/buildUploads?limit=10')
