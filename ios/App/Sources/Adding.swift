@@ -244,10 +244,16 @@ enum TCGdex {
     /// said so). True when none are missing after.
     static func repair(_ c: Card) async -> Bool { await repair(id: c.id, img: c.img) }
 
+    /// Each picture gets three tries, two seconds apart: TCGdex sometimes fails one for a moment (two of six came back
+    /// missing on the cloud Mac, 1 Nov, and downloaded fine at the next launch), and a failed try says so in the log.
     static func repair(id: String, img: [String: String]) async -> Bool {
         for (lang, file) in Art.missing(img) {
-            guard let f = await get(Full.self, "\(lang)/cards/\(id)"), let base = f.image else { continue }
-            await download(base + "/high.webp", to: Store.docs.appendingPathComponent("Cards/" + file))
+            for attempt in 1...3 {
+                if let f = await get(Full.self, "\(lang)/cards/\(id)"), let base = f.image,
+                   await download(base + "/high.webp", to: Store.docs.appendingPathComponent("Cards/" + file)) { break }
+                note("picture \(id) \(lang): try \(attempt) of 3 failed")
+                if attempt < 3 { try? await Task.sleep(nanoseconds: 2_000_000_000) }
+            }
         }
         return Art.missing(img).isEmpty
     }
