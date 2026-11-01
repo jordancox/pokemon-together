@@ -27,7 +27,7 @@ struct Board: View {
         .persistentSystemOverlays(.hidden)
         .defersSystemGestures(on: .all)
         .onAppear { game.boot() }
-        .fullScreenCover(isPresented: Binding(get: { game.adding }, set: { game.adding = $0 })) { AddView(game: game) }
+        .fullScreenCover(isPresented: Binding(get: { game.adding }, set: { game.adding = $0 })) { AddView(game: game, deck: game.addingDeck) }
     }
 }
 
@@ -36,13 +36,15 @@ struct Half: View {
     let side: Int
     var body: some View {
         ZStack { // the colour and the zoomed card fill the whole half, past the scaled part on a phone
-            Backdrop(type: game.sides[side].card?.type, lit: game.step == .battle && game.turn == side, calm: side == parentSide)
+            Backdrop(type: game.step == .deck ? game.deck.type : game.sides[side].card?.type,
+                     lit: game.step == .battle && game.turn == side, calm: side == parentSide)
             Fit(size: halfSize) {
                 ZStack {
                     switch game.step {
                     case .pick: StartView(game: game, side: side)
                     case .coin, .battle: BattleView(game: game, side: side)
                     case .over: OverView(game: game, side: side)
+                    case .deck: DeckView(game: game, side: side)
                     }
                     CoinView(angle: game.coinAngle, pokemon: game.coinPokemon, front: game.sides[0].card?.dex, back: game.sides[1].card?.dex)
                         .position(x: halfSize.width / 2, y: 230)
@@ -59,7 +61,7 @@ struct Half: View {
 }
 
 /// The strip across the middle: the Poké Ball (choose the Pokémon, start, say it again, play again; hold it to stop a
-/// game or choose again), the languages, CARDS (your cards, before a battle) and the voice switch.
+/// game or choose again; in decks mode, open a deck, and the next step), the languages, CARDS (your cards, before a battle) and the voice switch.
 struct Seam: View {
     let game: Game
     var body: some View {
@@ -75,7 +77,7 @@ struct Seam: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10).frame(height: 34)
                         .background(Capsule().fill(.white.opacity(game.canStart ? 0.15 : 0.35)))
-                        .modifier(Pulse(on: !game.canStart && game.step == .pick))
+                        .modifier(Pulse(on: !game.canStart && game.step == .pick && game.mode == .practice))
                 }
                 .opacity(game.step == .pick ? 1 : 0.25)
                 .disabled(game.step != .pick)
@@ -89,7 +91,7 @@ struct Seam: View {
             .padding(.horizontal, 16)
             Pokeball(top: Kind.color(game.sides[1].card?.type), bottom: Kind.color(game.sides[0].card?.type))
                 .frame(width: 96, height: 96)
-                .modifier(Pulse(on: (game.step == .pick && game.canStart) || game.step == .over))
+                .modifier(Pulse(on: (game.step == .pick && (game.canStart || game.mode == .decks)) || game.step == .over))
                 .contentShape(Circle())
                 .onTapGesture { game.ball() }
                 .onLongPressGesture(minimumDuration: 1.2) { game.quit() }

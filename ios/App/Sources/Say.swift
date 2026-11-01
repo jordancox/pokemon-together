@@ -17,20 +17,16 @@ enum Say {
     /// The retreat button: not the card's word, which in Italian is also Squirtle's attack (Withdraw, "Ritirata")
     static func retreatWord(_ l: Lang) -> String { t(l, "CAMBIA", "SWAP") }
     static func chooseLevel(_ l: Lang) -> String { t(l, "LIVELLO", "LEVEL") }
-    /// The levels, laddered up by hand as you learn (Jordan, 18 Oct: "Practice battle… up to like level 5? level 10? I
-    /// don't know how many steps till we master it"). Each adds one thing from the real game; 8 is all of it.
-    static let levels = 8
+    /// The practice levels (Jordan, 18 Oct: "Practice battle… up to like level 5? level 10?"). Three: the Prima Lotta
+    /// box taught his son the hand, evolution, prizes and Trainers (Jordan, 1 Nov 2026: "I don't think we need so many
+    /// steps"), so after these comes the real game, with a deck each (decks mode).
+    static let levels = 3
     static let built = 3 // 1 Practice battle, 2 Team, 3 Retreat
     static func level(_ l: Lang, _ n: Int) -> (String, String) {
         switch n {
         case 1: return (t(l, "Battaglia di prova", "Practice battle"), t(l, "un Pokémon a testa: Energia e attacchi", "one Pokémon each: Energy and attacks"))
         case 2: return (t(l, "Squadra", "Team"), t(l, "tre Pokémon a testa: quando uno va KO, entra il prossimo", "three Pokémon each: when one is knocked out, the next comes in"))
-        case 3: return (t(l, "Ritirata", "Retreat"), t(l, "cambiare il Pokémon che combatte", "swap the Pokémon that's fighting"))
-        case 4: return (t(l, "Evoluzioni", "Evolution"), t(l, "i Pokémon crescono durante la partita", "Pokémon evolve during the game"))
-        case 5: return (t(l, "La mano", "Your hand"), t(l, "un mazzo a testa: si pesca e si giocano le carte", "a deck each: draw and play cards"))
-        case 6: return (t(l, "Carte premio", "Prize cards"), t(l, "il modo vero di vincere", "the real way to win"))
-        case 7: return (t(l, "Allenatori", "Trainers"), t(l, "strumenti e aiutanti", "items and helpers"))
-        default: return (t(l, "Partita vera", "Full game"), t(l, "stati speciali, abilità: tutte le regole", "special conditions, abilities: all the rules"))
+        default: return (t(l, "Ritirata", "Retreat"), t(l, "cambiare il Pokémon che combatte", "swap the Pokémon that's fighting"))
         }
     }
     static func notBuilt(_ l: Lang) -> String { t(l, "non ancora pronto", "not built yet") }
@@ -303,6 +299,205 @@ enum Say {
         let n = String(format: "%.1f", s)
         return t(l, "Voce: Kokoro, 1 secondo di voce in \(n.replacingOccurrences(of: ".", with: ",")) secondi",
                  "Voice: Kokoro, 1 second of speech in \(n) seconds")
+    }
+
+    // Decks (Deck.swift): the mode, its five steps on the board, and the add screen for a deck. The parent's half has
+    // the sentences; the child's, single words.
+    static func learnWord(_ l: Lang) -> String { t(l, "IMPARA", "LEARN") }
+    static func decksWord(_ l: Lang) -> String { t(l, "MAZZI", "DECKS") }
+    static func hisDeck(_ l: Lang) -> String { t(l, "IL SUO MAZZO", "HIS DECK") }
+    static func yourDeck(_ l: Lang) -> String { t(l, "IL TUO MAZZO", "YOUR DECK") }
+    static func deckOwner(_ l: Lang, _ s: Int) -> String { s == childSide ? hisDeck(l) : yourDeck(l) }
+    /// The add screen's title, in a grown-up's sentence case.
+    static func deckTitle(_ l: Lang, _ s: Int) -> String {
+        s == childSide ? t(l, "Il suo mazzo", "His deck") : t(l, "Il tuo mazzo", "Your deck")
+    }
+    static func buildWord(_ l: Lang) -> String { t(l, "COSTRUISCI", "BUILD") }
+    static func continueWord(_ l: Lang) -> String { t(l, "CONTINUA", "CONTINUE") }
+    static func changeWord(_ l: Lang) -> String { t(l, "MODIFICA", "CHANGE") }
+    static func backWord(_ l: Lang) -> String { t(l, "INDIETRO", "BACK") }
+    static func nextWord(_ l: Lang) -> String { t(l, "AVANTI", "NEXT") }
+    static func addCardsWord(_ l: Lang) -> String { t(l, "AGGIUNGI CARTE", "ADD CARDS") }
+    static func startAgainWord(_ l: Lang) -> String { t(l, "RICOMINCIA", "START AGAIN") }
+    static func startAgainAsk(_ l: Lang) -> String { t(l, "Svuotare questo mazzo e ricominciare?", "Empty this deck and start again?") }
+    static func startAgainYes(_ l: Lang) -> String { t(l, "Svuota il mazzo", "Empty the deck") }
+    static func whichWord(_ l: Lang) -> String { t(l, "QUALE?", "WHICH?") }
+    static func trainersWord(_ l: Lang) -> String { t(l, "ALLENATORI", "TRAINERS") }
+    static func readyBang(_ l: Lang) -> String { t(l, "PRONTO!", "READY!") }
+    static func almostWord(_ l: Lang) -> String { t(l, "QUASI!", "ALMOST!") }
+
+    /// How far a deck has got, beside it on the start screen.
+    static func deckStatus(_ l: Lang, _ d: Deck) -> String {
+        if d.ready { return t(l, "pronto: 60 carte", "ready: 60 cards") }
+        if !d.started { return t(l, "non ancora iniziato", "not started yet") }
+        return t(l, "passo \(d.step) di 5: \(d.pokemonCount) Pokémon, \(d.trainerCount) Allenatori", "step \(d.step) of 5: \(d.pokemonCount) Pokémon, \(d.trainerCount) Trainers")
+    }
+    /// The decks mode on the start screen, under the two decks.
+    static func decksIntro(_ l: Lang) -> String {
+        t(l, "Nella partita vera ognuno gioca con un mazzo di 60 carte. Qui li costruite, uno alla volta, in cinque passi: io vi dico cosa fare, e sulla sua metà dello schermo lui vede cosa cercare. Cominciate dal suo: toccate COSTRUISCI, o la Poké Ball. L'aiuto dell'app durante la partita vera arriverà con il prossimo aggiornamento: per ora si gioca sul tavolo.",
+          "In the real game, each of you plays with a deck of 60 cards. Build them here, one at a time, in five steps: I'll tell you what to do, and his half of the screen shows him what to look for. Start with his: tap BUILD, or the Poké Ball. The app's help during the real game comes in the next update; for now, play it on the table.")
+    }
+    static func deckStepName(_ l: Lang, _ n: Int) -> String {
+        switch n {
+        case 1: return t(l, "TIPO", "TYPE")
+        case 2: return "POKÉMON"
+        case 3: return t(l, "ALLENATORI", "TRAINERS")
+        case 4: return t(l, "ENERGIA", "ENERGY")
+        default: return t(l, "CONTROLLO", "CHECK")
+        }
+    }
+    /// "HIS DECK · STEP 2 OF 5 · POKÉMON"
+    static func deckHeading(_ l: Lang, _ s: Int, _ n: Int) -> String {
+        deckOwner(l, s) + " · " + t(l, "PASSO \(n) DI 5", "STEP \(n) OF 5") + " · " + deckStepName(l, n)
+    }
+    /// What to do at each step, and why, on the parent's half.
+    static func deckStep(_ l: Lang, _ d: Deck, _ s: Int) -> String {
+        let type = d.type ?? "Colorless", k = Kind.name(type, l)
+        switch d.step {
+        case 1:
+            return t(l, "Scegliete un tipo. Ogni Pokémon ne ha uno: è il simbolo in alto a destra della carta, accanto ai PS. Un mazzo funziona meglio con un tipo solo, perché gli attacchi vogliono Energia di quel tipo. " + (s == childSide ? "Fatelo scegliere a lui, sulla sua metà: magari il tipo del suo Pokémon preferito. " : "") + "Poi toccate AVANTI.",
+                     "Choose a type. Every Pokémon has one: it's the symbol at the top right of the card, beside the HP. A deck works best with just one type, because the attacks need Energy of that type. " + (s == childSide ? "Let him choose, on his half: maybe his favourite Pokémon's type. " : "") + "Then tap NEXT.")
+        case 2:
+            return t(l, "Ora i Pokémon. Tirate fuori dalle vostre carte quelli con il simbolo \(k) (quelli con la stella bianca, Incolore, vanno bene in ogni mazzo). Sceglietene circa 20, i suoi preferiti, a famiglie intere: una carta evoluta dice in alto a sinistra «Si evolve da…», e va nel mazzo solo insieme a quel Pokémon. Due o tre copie della stessa carta vanno bene: esce più spesso. Toccate AGGIUNGI CARTE e inquadrate il codice in basso a sinistra di ognuna.",
+                     "Now the Pokémon. Sort out of your cards the ones with the \(type) symbol (the white star ones, Colorless, fit in any deck). Choose about 20, his favourites, in whole families: an evolved card says \"Evolves from…\" at the top left, and only goes in the deck with that Pokémon. Two or three copies of the same card are good: it comes up more often. Tap ADD CARDS and point the camera at the code at the bottom left of each.")
+        case 3:
+            return t(l, "Ora gli Allenatori: le carte con scritto ALLENATORE in alto, che aiutano durante la partita. Sceglietene circa 20. I più utili fanno pescare carte o cercare nel mazzo (dicono «pesca» o «cerca nel tuo mazzo»); aggiungete anche un paio di carte che curano o che cambiano il Pokémon che combatte. In alto c'è anche il tipo di Allenatore: Strumento, Aiuto, Oggetto o Stadio. Quando ne aggiungete uno, vi dico cosa vuol dire.",
+                     "Now the Trainers: the cards with TRAINER at the top, which help during the game. Choose about 20. The most useful let you draw cards or search your deck (they say \"draw\" or \"search your deck\"); add a couple that heal or swap the fighting Pokémon too. The top also says what kind of Trainer it is: Item, Supporter, Pokémon Tool or Stadium. When you add one, I'll tell you what that means.")
+        case 4:
+            let e = d.energyCards()
+            guard d.fits, !e.isEmpty else {
+                return t(l, "Ora l'Energia. Un mazzo ha esattamente 60 carte, e l'Energia riempie il resto: ma con \(d.pokemonCount) Pokémon e \(d.trainerCount) Allenatori non resta posto. Togliete qualche carta (AGGIUNGI CARTE, poi −).",
+                         "Now the Energy. A deck has exactly 60 cards, and Energy fills the rest: but with \(d.pokemonCount) Pokémon and \(d.trainerCount) Trainers there's no room left. Take a few cards out (ADD CARDS, then −).")
+            }
+            let list = Say.list(l, e.map { energyCount(l, $0.type, $0.n) })
+            return t(l, "Ora l'Energia. Un mazzo ha esattamente 60 carte, e l'Energia riempie il resto. Contate \(list), e mettetele nel mazzo. Con \(d.pokemonCount) Pokémon e \(d.trainerCount) Allenatori fa 60. Le carte Energia non serve aggiungerle all'app.",
+                     "Now the Energy. A deck has exactly 60 cards, and Energy fills the rest. Count out \(list), and put them in the deck. With \(d.pokemonCount) Pokémon and \(d.trainerCount) Trainers, that makes 60. There's no need to add Energy cards to the app.")
+        default:
+            let keep = s == childSide ? t(l, "il suo nome", "his name") : t(l, "il tuo nome", "your name")
+            return d.meetsRules
+                ? t(l, "Il controllo: il mazzo rispetta le regole. Mescolatelo bene e tenetelo insieme, con un elastico o in una scatola con \(keep). Poi toccate FINE.",
+                    "The check: the deck keeps the rules. Shuffle it well and keep it together, with an elastic band or in a box with \(keep) on it. Then tap DONE.")
+                : t(l, "Il controllo: quasi. Sistemate quello che non va (con INDIETRO si torna ai passi prima), poi toccate FINE.",
+                    "The check: almost there. Fix what's not right (BACK goes to the steps before), then tap DONE.")
+        }
+    }
+    /// "22 Energie Fuoco (quelle rosse, con una fiamma)" / "22 Fire Energy cards (the red ones, with a flame)"
+    static func energyCount(_ l: Lang, _ type: String, _ n: Int) -> String {
+        if type == "Colorless" { return t(l, "\(n) carte Energia qualsiasi", "\(n) Energy cards of any kind") }
+        if n == 1 { return energyCard(l, type) + (energyLook(l, type, long: true).map { " (\($0))" } ?? "") }
+        let looks: [String: (String, String)] = [
+            "Grass": ("quelle verdi, con una foglia", "the green ones, with a leaf"),
+            "Fire": ("quelle rosse, con una fiamma", "the red ones, with a flame"),
+            "Water": ("quelle blu, con una goccia", "the blue ones, with a drop of water"),
+            "Lightning": ("quelle gialle, con un fulmine", "the yellow ones, with a lightning bolt"),
+            "Psychic": ("quelle viola, con un occhio", "the purple ones, with an eye"),
+            "Fighting": ("quelle arancioni, con un pugno", "the orange ones, with a fist"),
+            "Darkness": ("quelle nere", "the black ones"),
+            "Metal": ("quelle grigie", "the grey ones"),
+            "Fairy": ("quelle rosa", "the pink ones"),
+        ]
+        let look = looks[type].map { " (" + t(l, $0.0, $0.1) + ")" } ?? ""
+        return t(l, "\(n) Energie \(Kind.name(type, l))", "\(n) \(type) Energy cards") + look
+    }
+    /// The rules, at the check: each with a tick or a cross.
+    static func deckRules(_ l: Lang, _ d: Deck) -> [(Bool, String)] {
+        var out: [(Bool, String)] = [
+            (d.fits, d.fits ? t(l, "60 carte: \(d.pokemonCount) Pokémon, \(d.trainerCount) Allenatori, \(d.energyCount) Energie", "60 cards: \(d.pokemonCount) Pokémon, \(d.trainerCount) Trainers, \(d.energyCount) Energy")
+                : t(l, "\(d.pokemonCount + d.trainerCount) carte senza l'Energia: un mazzo ne ha 60 in tutto", "\(d.pokemonCount + d.trainerCount) cards before the Energy: a deck has 60 in all")),
+            (d.fourOK, t(l, "Al massimo 4 copie della stessa carta (l'Energia base a parte)", "No more than 4 of the same card (basic Energy apart)")),
+            (d.basics > 0, t(l, "Almeno un Pokémon Base: ogni partita comincia con uno davanti a te", "At least one Basic Pokémon: every game starts with one in front of you")),
+        ]
+        if d.aces > 0 { out.append((d.aces <= 1, t(l, "Un solo ACE SPEC (ASSO TATTICO)", "Only one ACE SPEC"))) }
+        if d.radiants > 0 { out.append((d.radiants <= 1, t(l, "Un solo Pokémon Radioso", "Only one Radiant Pokémon"))) }
+        return out
+    }
+    static func tip(_ l: Lang, _ x: Tip) -> String {
+        switch x {
+        case .gap(let n, let f):
+            return t(l, "\(n) si evolve da \(f), che nel mazzo non c'è: aggiungete un \(f), o togliete \(n).", "\(n) evolves from \(f), which isn't in the deck: add a \(f), or take \(n) out.")
+        case .noBasic:
+            return t(l, "Nessun Pokémon Base: senza, la partita non può cominciare. Aggiungete Pokémon con scritto BASE in alto a sinistra.", "No Basic Pokémon: without one, the game can't start. Add Pokémon that say BASIC at the top left.")
+        case .fewBasics(let n):
+            return t(l, "Solo \(n) Pokémon Base: ne servono 8 o più, perché ogni partita comincia con loro.", "Only \(n) Basic Pokémon: a deck wants 8 or more, because every game starts with them.")
+        case .noDraw:
+            return t(l, "Nessun Allenatore fa pescare carte o cercare nel mazzo: cercate quelli che dicono «pesca» o «cerca nel tuo mazzo».", "None of the Trainers draw cards or search the deck: look for ones that say \"draw\" or \"search your deck\".")
+        case .fewEnergy(let n):
+            return t(l, "Solo \(n) Energie: gli attacchi faticheranno a partire. Togliete qualche Allenatore.", "Only \(n) Energy: attacks will be slow to get going. Take out a few Trainers.")
+        case .manyEnergy(let n):
+            return t(l, "\(n) Energie sono tante: aggiungete qualche Pokémon o Allenatore.", "\(n) Energy is a lot: add a few more Pokémon or Trainers.")
+        case .tooMany(let n):
+            return t(l, "Ci sono già \(n) carte senza l'Energia: togliete qualche Allenatore o Pokémon, così c'è posto per l'Energia.", "There are already \(n) cards before the Energy: take out a few Trainers or Pokémon, to make room for Energy.")
+        }
+    }
+    // The add screen, for a deck
+    static func deckAddHint(_ l: Lang) -> String {
+        t(l, "Le carte Pokémon e Allenatore del mazzo: inquadra il codice in basso a sinistra di ogni carta, o scrivi il numero o il nome. L'Energia non serve aggiungerla: si conta al passo 4. Due copie della stessa carta? Tocca + sotto la carta.",
+          "The deck's Pokémon and Trainer cards: point the camera at the code at the bottom left of each card, or type the number or the name. No need to add Energy: it's counted at step 4. Two of the same card? Tap + under it.")
+    }
+    static func inDeck(_ l: Lang, _ n: String) -> String { t(l, "Nel mazzo: \(n).", "In the deck: \(n).") }
+    static func soFar(_ l: Lang, _ p: Int, _ k: Int) -> String {
+        t(l, "(\(p) Pokémon, \(k) Allenatori)", "(\(p) Pokémon, \(k) Trainers)")
+    }
+    static func deckCount(_ l: Lang, _ p: Int, _ k: Int) -> String {
+        t(l, "\(p) Pokémon · \(k) Allenatori", "\(p) Pokémon · \(k) Trainers")
+    }
+    static func basicTeach(_ l: Lang) -> String {
+        t(l, "In alto a sinistra c'è scritto BASE: è un Pokémon Base, si può giocare subito. Ogni mazzo ne vuole parecchi.",
+          "At the top left it says BASIC: it's a Basic Pokémon, which can be played straight away. Every deck wants plenty of these.")
+    }
+    static func evolvesTeach(_ l: Lang, _ f: String, _ has: Bool) -> String {
+        t(l, "In alto a sinistra dice «Si evolve da \(f)»: in partita va sopra un \(f), quindi nel mazzo serve anche un \(f)" + (has ? ": c'è già." : ": ancora non c'è."),
+          "At the top left it says \"Evolves from \(f)\": in a game it goes on top of a \(f), so the deck needs a \(f) too" + (has ? ": there's one already." : ": there isn't one yet."))
+    }
+    static func evolves(_ l: Lang, _ f: String, _ has: Bool) -> String {
+        has ? t(l, "Si evolve da \(f), che c'è.", "It evolves from \(f), which is in the deck.")
+            : t(l, "Si evolve da \(f): aggiungete anche un \(f).", "It evolves from \(f): add a \(f) too.")
+    }
+    static func offType(_ l: Lang, _ type: String) -> String {
+        t(l, "È di tipo \(Kind.name(type, l)): i suoi attacchi vogliono Energia \(Kind.name(type, l)), che conto al passo 4.",
+          "It's \(type) type: its attacks need \(type) Energy, which step 4 will count in.")
+    }
+    /// A Trainer's kind, as printed at the top of the card in that language; what it means the first time.
+    static func kind(_ l: Lang, _ k: String, teach: Bool) -> String {
+        guard teach else {
+            switch k {
+            case "Supporter": return t(l, "È un Aiuto.", "It's a Supporter.")
+            case "Tool": return t(l, "È un Oggetto.", "It's a Pokémon Tool.")
+            case "Stadium": return t(l, "È uno Stadio.", "It's a Stadium.")
+            default: return t(l, "È uno Strumento.", "It's an Item.")
+            }
+        }
+        switch k {
+        case "Supporter": return t(l, "È un Aiuto: se ne può giocare uno solo per turno.", "It's a Supporter: you can only play one a turn.")
+        case "Tool": return t(l, "È un Oggetto: si mette sotto uno dei tuoi Pokémon e ci resta, uno per Pokémon.", "It's a Pokémon Tool: it goes under one of your Pokémon and stays there, one per Pokémon.")
+        case "Stadium": return t(l, "È uno Stadio: va in mezzo al tavolo e vale per tutti e due, finché un altro Stadio non lo sostituisce.", "It's a Stadium: it goes in the middle of the table and counts for both players, until another Stadium replaces it.")
+        default: return t(l, "È uno Strumento: nel tuo turno se ne possono giocare quanti se ne vuole.", "It's an Item: you can play as many as you like on your turn.")
+        }
+    }
+    static func does(_ l: Lang, _ d: String) -> String {
+        switch d {
+        case "draw": return t(l, "Fa pescare carte: ogni mazzo ne vuole diversi.", "It lets you draw cards: every deck wants several of these.")
+        case "search": return t(l, "Fa cercare una carta nel mazzo: utilissimo.", "It finds a card in your deck: very useful.")
+        case "heal": return t(l, "Cura un Pokémon.", "It heals a Pokémon.")
+        case "switch": return t(l, "Scambia gratis il Pokémon che combatte con uno della panchina.", "It swaps the fighting Pokémon with one on the bench, for free.")
+        case "pull": return t(l, "Porta davanti un Pokémon della panchina dell'altro.", "It brings one of the other player's bench Pokémon to the front.")
+        default: return t(l, "Mette Energia sui tuoi Pokémon.", "It puts Energy on your Pokémon.")
+        }
+    }
+    static func aceNote(_ l: Lang) -> String {
+        t(l, "È un ACE SPEC (ASSO TATTICO): in un mazzo se ne può mettere uno solo.", "It's an ACE SPEC: a deck can only have one.")
+    }
+    static func fourMax(_ l: Lang, _ n: String) -> String {
+        t(l, "Ci sono già 4 \(n): in un mazzo al massimo 4 copie della stessa carta.", "There are already 4 \(n): a deck can have no more than 4 of the same card.")
+    }
+    static func oneAce(_ l: Lang) -> String {
+        t(l, "C'è già un ACE SPEC (ASSO TATTICO): in un mazzo se ne può mettere uno solo.", "There's already an ACE SPEC: a deck can only have one.")
+    }
+    static func oneRadiant(_ l: Lang) -> String {
+        t(l, "C'è già un Pokémon Radioso: in un mazzo se ne può mettere uno solo.", "There's already a Radiant Pokémon: a deck can only have one.")
+    }
+    static func energyScanned(_ l: Lang, _ n: String) -> String {
+        t(l, "\(n) è una carta Energia: non serve aggiungerla, le Energie si contano al passo 4.", "\(n) is an Energy card: no need to add it, Energy is counted at step 4.")
     }
 
     static func card(_ l: Lang, _ c: Card) -> String {

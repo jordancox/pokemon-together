@@ -127,6 +127,10 @@ enum TCGdex {
         let resistances: [TypeValue]?
         let retreat: Int?
         let image: String?
+        let evolveFrom: String?
+        let trainerType: String?
+        let rarity: String?
+        let effect: String?
     }
 
     struct Move: Decodable {
@@ -153,6 +157,14 @@ enum TCGdex {
     enum Fetched {
         case ok(Card)
         case notPokemon(String)
+        case offline
+    }
+
+    /// Any card, for a deck: a Pokémon, a Trainer, or an Energy card (those are only counted, not added).
+    enum Got {
+        case pokemon(Card)
+        case trainer(Trainer)
+        case energy(String)
         case offline
     }
 
@@ -230,12 +242,14 @@ enum TCGdex {
 
     /// Downloads again the pictures a card is missing (Yanma's didn't download on Jordan's iPad, 18 Oct, and nothing
     /// said so). True when none are missing after.
-    static func repair(_ c: Card) async -> Bool {
-        for (lang, file) in Art.missing(c) {
-            guard let f = await get(Full.self, "\(lang)/cards/\(c.id)"), let base = f.image else { continue }
+    static func repair(_ c: Card) async -> Bool { await repair(id: c.id, img: c.img) }
+
+    static func repair(id: String, img: [String: String]) async -> Bool {
+        for (lang, file) in Art.missing(img) {
+            guard let f = await get(Full.self, "\(lang)/cards/\(id)"), let base = f.image else { continue }
             await download(base + "/high.webp", to: Store.docs.appendingPathComponent("Cards/" + file))
         }
-        return Art.missing(c).isEmpty
+        return Art.missing(img).isEmpty
     }
 
     /// The whole card in both languages. Its pictures and sprite come after (`finish`), so adding it doesn't wait for them.
@@ -246,16 +260,53 @@ enum TCGdex {
         return .ok(make(en, it))
     }
 
+    /// Any card for a deck, in both languages.
+    static func fetchAny(_ id: String) async -> Got {
+        guard let en = await get(Full.self, "en/cards/\(id)") else { return .offline }
+        let it = await get(Full.self, "it/cards/\(id)")
+        switch en.category {
+        case "Pokemon", "Pokémon": return .pokemon(make(en, it))
+        case "Trainer": return .trainer(trainer(en, it))
+        default: return .energy(en.name)
+        }
+    }
+
+    /// What a Pokémon that isn't in a deck evolves from, and its Pokédex number: one of its evolutions is in the deck,
+    /// and the child's half shows it in the gap ("Charizard ex evolves from Charmeleon").
+    static func lineage(_ name: String) async -> Lineage? {
+        guard let list = await get([Brief].self, "en/cards", [URLQueryItem(name: "name", value: "eq:" + name)]),
+              let b = list.first(where: { printed($0.id) }),
+              let f = await get(Full.self, "en/cards/\(b.id)") else { return nil }
+        return Lineage(from: f.evolveFrom, dex: f.dexId?.first)
+    }
+
     /// The card's pictures and sprite, saved on the iPad. True when its pictures are all there.
     static func finish(_ c: Card) async -> Bool {
         let ok = await repair(c)
-        if let dex = c.dex, Art.sprite(dex) == nil {
-            let pokeapi = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"
-            if !(await download(pokeapi + "other/showdown/\(dex).gif", to: Store.docs.appendingPathComponent("Sprites/\(dex).gif"))) {
-                await download(pokeapi + "\(dex).png", to: Store.docs.appendingPathComponent("Sprites/\(dex).png"))
-            }
-        }
+        if let dex = c.dex { await sprite(dex) }
         return ok
+    }
+
+    /// A Pokémon's sprite from PokeAPI (animated if there is one), unless it's already on the iPad.
+    static func sprite(_ dex: Int) async {
+        guard Art.sprite(dex) == nil else { return }
+        let pokeapi = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/"
+        if !(await download(pokeapi + "other/showdown/\(dex).gif", to: Store.docs.appendingPathComponent("Sprites/\(dex).gif"))) {
+            await download(pokeapi + "\(dex).png", to: Store.docs.appendingPathComponent("Sprites/\(dex).png"))
+        }
+    }
+
+    private static func pictures(_ e: Full, _ i: Full?) -> [String: String] {
+        let file = e.id.replacingOccurrences(of: ".", with: "_") + ".webp"
+        var img: [String: String] = [:]
+        if e.image != nil { img["en"] = "en/" + file }
+        if i?.image != nil { img["it"] = "it/" + file }
+        return img
+    }
+
+    private static func trainer(_ e: Full, _ i: Full?) -> Trainer {
+        Trainer(id: e.id, name: Words(en: e.name, it: i?.name ?? e.name), kind: e.trainerType ?? "Item", does: Trainers.does(e.effect),
+                ace: (e.rarity ?? "").localizedCaseInsensitiveContains("ACE SPEC"), img: pictures(e, i))
     }
 
     /// Like tools/cards.py: the English card's numbers and effects, with the Italian names.
@@ -268,14 +319,12 @@ enum TCGdex {
             return Attack(name: Words(en: a.name, it: k < ia.count ? ia[k].name : a.name), cost: a.cost ?? [],
                           damage: Int(digits) ?? 0, mod: mod.isEmpty ? nil : mod, fx: Effects.read(a.effect))
         }
-        let file = e.id.replacingOccurrences(of: ".", with: "_") + ".webp"
-        var img: [String: String] = [:]
-        if e.image != nil { img["en"] = "en/" + file }
-        if i?.image != nil { img["it"] = "it/" + file }
+        let img = pictures(e, i)
         let r = e.resistances?.first
         return Card(id: e.id, dex: e.dexId?.first, stage: e.stage, hp: e.hp ?? 0, type: e.types?.first ?? "Colorless",
                     weak: e.weaknesses?.first?.type, resist: r?.type, resistBy: r?.value.flatMap { Int($0.filter(\.isNumber)) },
-                    retreat: e.retreat ?? 0, name: Words(en: e.name, it: i?.name ?? e.name), attacks: attacks, img: img)
+                    retreat: e.retreat ?? 0, name: Words(en: e.name, it: i?.name ?? e.name), attacks: attacks, img: img,
+                    from: e.evolveFrom)
     }
 
     @discardableResult
@@ -312,10 +361,13 @@ enum Store {
     @ObservationIgnored private var lookupStart = Date.distantPast
     @ObservationIgnored private var looking = false
     @ObservationIgnored let game: Game
+    /// Whose deck the cards go in (decks mode); nil: the box of cards the practice levels choose from.
+    @ObservationIgnored let deck: Int?
 
-    init(game: Game) {
+    init(game: Game, deck: Int? = nil) {
         self.game = game
-        message = Say.addHint(game.lang)
+        self.deck = deck
+        message = deck == nil ? Say.addHint(game.lang) : Say.deckAddHint(game.lang)
     }
 
     func search() async {
@@ -370,6 +422,12 @@ enum Store {
         busy = true
         adding = true
         message = Say.adding(game.lang)
+        if let s = deck {
+            await addToDeck(b, s)
+            adding = false
+            busy = false
+            return
+        }
         switch await TCGdex.fetch(b.id) {
         case .ok(let c):
             game.add(c)
@@ -388,18 +446,52 @@ enum Store {
         adding = false
         busy = false
     }
+
+    /// A card for a deck: a Pokémon or a Trainer goes in, with a line on what it is; an Energy card is only counted.
+    private func addToDeck(_ b: TCGdex.Brief, _ s: Int) async {
+        let l = game.lang
+        switch await TCGdex.fetchAny(b.id) {
+        case .pokemon(let c):
+            message = game.deckAdd(c, to: s)
+            took()
+            Task {
+                let ok = await TCGdex.finish(c)
+                game.pictures += 1
+                if !ok { message = Say.noPicture(l, c.name(l)) }
+            }
+        case .trainer(let t):
+            message = game.deckAdd(t, to: s)
+            took()
+            Task {
+                let ok = await TCGdex.repair(id: t.id, img: t.img)
+                game.pictures += 1
+                if !ok { message = Say.noPicture(l, t.name(l)) }
+            }
+        case .energy(let n): message = Say.energyScanned(l, n)
+        case .offline: message = Say.offline(l)
+        }
+    }
+
+    /// Added: the results go, and the card still under the camera isn't looked up again.
+    private func took() {
+        found = []
+        query = ""
+        lastTime = .distantFuture
+    }
 }
 
 /// The add screen: the camera on top (on an iPad that has one), a name to type, what was found, and his cards.
 /// For a grown-up, upright, over the whole screen.
 struct AddView: View {
     let game: Game
+    let deck: Int? // decks mode: whose deck the cards go in
     @State private var adder: Adder
     @State private var camera = false
 
-    init(game: Game) {
+    init(game: Game, deck: Int? = nil) {
         self.game = game
-        _adder = State(initialValue: Adder(game: game))
+        self.deck = deck
+        _adder = State(initialValue: Adder(game: game, deck: deck))
     }
 
     private let phone = UIDevice.current.userInterfaceIdiom == .phone
@@ -408,7 +500,7 @@ struct AddView: View {
         let l = game.lang
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text(Say.yourCards(l)).font(.system(size: phone ? 28 : 34, weight: .heavy, design: .rounded))
+                Text(deck.map { Say.deckTitle(l, $0) } ?? Say.yourCards(l)).font(.system(size: phone ? 28 : 34, weight: .heavy, design: .rounded))
                 Spacer()
                 Button { game.closeAdding() } label: {
                     Text(Say.doneWord(l)).font(.system(size: 22, weight: .bold, design: .rounded)).padding(.horizontal, 12)
@@ -450,7 +542,7 @@ struct AddView: View {
                                     }
                                     .frame(width: phone ? 110 : 150, height: phone ? 153 : 209)
                                     .overlay(alignment: .topTrailing) {
-                                        if game.mine.contains(where: { $0.id == b.id }) {
+                                        if deck.map({ game.decks[$0].has(b.id) }) ?? game.mine.contains(where: { $0.id == b.id }) {
                                             Image(systemName: "checkmark.circle.fill").font(.system(size: 34)).foregroundStyle(.green, .white).padding(6)
                                         }
                                     }
@@ -468,30 +560,10 @@ struct AddView: View {
                 .frame(height: phone ? 182 : 240)
             }
             Divider()
-            Text(Say.count(l, game.mine.count)).font(.system(size: 20, weight: .semibold, design: .rounded))
-            TimelineView(.periodic(from: .now, by: 2)) { _ in
-                Text(Say.voiceInfo(l, Kokoro.shared.on, Kokoro.shared.speed)).font(.system(size: 14, design: .rounded)).foregroundStyle(.gray)
-            }
-            ScrollView {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: phone ? 3 : 6), spacing: 10) {
-                    ForEach(game.mine) { c in
-                        VStack(spacing: 2) {
-                            SpriteView(dex: c.dex, box: 64).frame(height: 70)
-                            Text(c.name(l)).font(.system(size: 15, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.6)
-                            if !c.playable { Text(Say.cantBattle(l)).font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(.red) }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(Color(white: 0.94)))
-                        .opacity(c.playable ? 1 : 0.5)
-                        .overlay(alignment: .topTrailing) {
-                            Button { game.remove(c.id) } label: {
-                                Image(systemName: "xmark.circle.fill").font(.system(size: 24)).foregroundStyle(.gray)
-                            }
-                            .padding(4)
-                        }
-                    }
-                }
+            if let s = deck {
+                DeckList(game: game, side: s) { adder.message = $0 }
+            } else {
+                box
             }
         }
         .padding(phone ? 16 : 24)
@@ -502,6 +574,36 @@ struct AddView: View {
             if let q = UserDefaults.standard.string(forKey: "query") {
                 adder.query = q
                 await adder.search()
+            }
+        }
+    }
+
+    /// The box of cards the practice levels choose from.
+    @ViewBuilder private var box: some View {
+        let l = game.lang
+        Text(Say.count(l, game.mine.count)).font(.system(size: 20, weight: .semibold, design: .rounded))
+        TimelineView(.periodic(from: .now, by: 2)) { _ in
+            Text(Say.voiceInfo(l, Kokoro.shared.on, Kokoro.shared.speed)).font(.system(size: 14, design: .rounded)).foregroundStyle(.gray)
+        }
+        ScrollView {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: phone ? 3 : 6), spacing: 10) {
+                ForEach(game.mine) { c in
+                    VStack(spacing: 2) {
+                        SpriteView(dex: c.dex, box: 64).frame(height: 70)
+                        Text(c.name(l)).font(.system(size: 15, weight: .bold, design: .rounded)).lineLimit(1).minimumScaleFactor(0.6)
+                        if !c.playable { Text(Say.cantBattle(l)).font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(.red) }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Color(white: 0.94)))
+                    .opacity(c.playable ? 1 : 0.5)
+                    .overlay(alignment: .topTrailing) {
+                        Button { game.remove(c.id) } label: {
+                            Image(systemName: "xmark.circle.fill").font(.system(size: 24)).foregroundStyle(.gray)
+                        }
+                        .padding(4)
+                    }
+                }
             }
         }
     }

@@ -71,6 +71,8 @@ if [ "$KIND" = iphone ]; then
   run phone-add-search 10 -- -demo add -query pikachu -lang it
   run phone-added 15 -- -add sv01-038,sv01-036,me01-001,sv01-037 -demo start -lang it
   run phone-add-list 6 -- -demo add -lang en
+  run phone-decks 5 -- -mode decks -lang it
+  run phone-deck-1 5 -- -deckstep 1 -lang en
   xcrun simctl terminate "$UDID" "$ID" || true
   xcrun simctl shutdown "$UDID" || true
   exit 0
@@ -113,6 +115,27 @@ grep -hE "^\[insieme\] (chose|KO:|in:|retreat:|win:|auto:)" "$OUT/auto-team.log"
 grep -qE "log: ([5-9]|[0-9]{2,}) lines kept" "$OUT/auto.log" || { echo "the end didn't keep the game's lines:"; grep "log:" "$OUT/auto.log"; exit 1; }
 # Kokoro on the simulator: how long it takes to make lines (the log's "kokoro:" lines; the iPad is slower)
 run voice 75 -- -voicetest YES -lang it -quiet NO
+# Decks, a mode of its own (Jordan, 1 Nov 2026, after the Prima Lotta box: "teaching him how to assemble a deck. and
+# teaching me as well"; "Just separate modes"). The start, step 1, a family with a gap (Charizard ex without its
+# Charmeleon, looked up so his half shows the one to find), then -decktest builds his deck from real cards: it must
+# come out at 60 with every rule met and nothing to sort out, a fifth Charmander and an Energy card refused. Then the
+# steps on that deck, and the add screen for it.
+run decks 5 -- -mode decks -deckreset YES -lang it
+run deck-1 5 -- -deckstep 1 -lang en
+run deck-gap 30 -- -deckreset YES -decktype Fire -deckstep 2 -deckadd "sv03.5-004*2,sv03.5-006*2,sv01-036*3,sv01-037*2" -lang it
+wait_for deck-gap "deckadd: after looking up" 60 || true
+grep -q "deckadd: after looking up, families .*Charmander×2>Charmeleon?>Charizard ex×2" "$OUT/deck-gap.log" \
+  || { echo "deck-gap: the missing Charmeleon wasn't shown in its family:"; grep -E "deck|learned" "$OUT/deck-gap.log"; exit 1; }
+run decktest 75 -- -decktest YES -lang en
+wait_for decktest "decktest:" 90 || true
+grep -q "decktest: 18 Pokémon, 20 Trainers, Energy Fire 22; .*refused yes; energy card not added yes; tips none; ready yes" "$OUT/decktest.log" \
+  || { echo "decktest failed:"; grep -E "decktest|deck" "$OUT/decktest.log"; exit 1; }
+grep -h "decktest:" "$OUT/decktest.log"
+run deck-3 6 -- -deckstep 3 -lang it
+run deck-4 5 -- -deckstep 4 -lang en
+run deck-5 5 -- -deckstep 5 -lang it
+run deck-add 8 -- -demo deckadd -lang en
+run decks-ready 5 -- -mode decks -lang en
 # Adding cards (no camera on the simulator: the name search, and cards added the way the add screen does). Last, as
 # the cards it adds stay in the app's data for any later run.
 # The camera, without a camera: five cards in a row, each looked up once (build 20's screen flickered) and added

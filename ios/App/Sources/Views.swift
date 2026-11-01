@@ -34,6 +34,11 @@ struct StartView: View {
                     Text(c.name(game.lang).uppercased()).font(.system(size: 56, weight: .black, design: .rounded))
                         .lineLimit(1).minimumScaleFactor(0.5)
                 }
+            } else if game.mode == .decks, let t = game.decks[childSide].type { // decks: the type he chose for his
+                VStack(spacing: 24) {
+                    EnergyIcon(type: t, size: 190)
+                    Text(Kind.name(t, game.lang).uppercased()).font(.system(size: 80, weight: .black, design: .rounded))
+                }
             } else {
                 VStack(spacing: 24) {
                     Pokeball().frame(width: 190, height: 190)
@@ -45,20 +50,27 @@ struct StartView: View {
         .foregroundStyle(.white)
     }
 
+    /// The modes at the top (the practice levels, or the decks: Jordan, 1 Nov 2026, "Just separate modes"), then that
+    /// mode's choices.
     private var parentIntro: some View {
         let l = game.lang
         return VStack(alignment: .leading, spacing: 4) {
-            Text(Say.chooseLevel(l)).font(.system(size: 18, weight: .heavy, design: .rounded)).opacity(0.6)
-            ForEach(1...Say.levels, id: \.self) { n in
-                Button { game.setLevel(n) } label: { LevelRow(n: n, lang: l, on: game.level == n) }.buttonStyle(.plain)
+            ModeTabs(game: game).padding(.bottom, 12)
+            if game.mode == .decks {
+                DecksPanel(game: game)
+            } else {
+                Text(Say.chooseLevel(l)).font(.system(size: 18, weight: .heavy, design: .rounded)).opacity(0.6)
+                ForEach(1...Say.levels, id: \.self) { n in
+                    Button { game.setLevel(n) } label: { LevelRow(n: n, lang: l, on: game.level == n) }.buttonStyle(.plain)
+                }
+                Spacer(minLength: 6)
+                // what this level is; or, in yellow, why the Poké Ball can't start it yet (shaken when it's tapped)
+                Text(game.levelNote ?? game.intro())
+                    .font(.system(size: 21, weight: .semibold, design: .rounded))
+                    .foregroundStyle(game.levelNote == nil && game.canStart ? Color.white : .yellow)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .modifier(Shake(t: CGFloat(game.nudge)))
             }
-            Spacer(minLength: 6)
-            // what this level is; or, in yellow, why the Poké Ball can't start it yet (shaken when it's tapped)
-            Text(game.levelNote ?? game.intro())
-                .font(.system(size: 21, weight: .semibold, design: .rounded))
-                .foregroundStyle(game.levelNote == nil && game.canStart ? Color.white : .yellow)
-                .fixedSize(horizontal: false, vertical: true)
-                .modifier(Shake(t: CGFloat(game.nudge)))
         }
         .padding(.horizontal, 28).padding(.vertical, 20)
     }

@@ -22,14 +22,20 @@ pulsing, the instructions written out in sentences to read and pass on. The top 
 face him, has pictures, numbers and single words (READY?, his Pokémon, ENERGY, the attacks, DONE, SWAP, WHO?, YOUR
 TURN!, YOU WIN!). **The voice is off** unless switched on: Jordan does the talking.
 
-**Levels, laddered up by hand** (Jordan, 18 Oct: "Practice battle. More complex. Full sim. We can manually ladder up
-as we learn the mechanics… up to like level 5? level 10?"). Each adds one thing from the real game (`Say.level`):
-1 Practice battle (one Pokémon each, Energy, attacks), 2 Team (three Pokémon each, one fighting and the rest on the
-bench; after a KO its player taps who comes in), 3 Retreat (SWAP / CAMBIA, once a turn, pays the card's retreat cost
-in Energy; not RETREAT / RITIRATA, which in Italian is also Squirtle's attack), 4 Evolution, 5 Your hand (a deck each,
-draw and play), 6 Prize cards, 7 Trainers, 8 Full game (special conditions, abilities, all the rules). **1 to 3 are
-built** (`Say.built`; 2 and 3 on 20 Oct 2026). The parent picks the level on the start screen (remembered); the ones
-not built say so. Build the next level only when Jordan asks.
+**Separate modes** (Jordan, 1 Nov 2026: "It can all sit in the same app. Just separate modes"), as tabs at the top of
+the parent's start half (`ModeTabs`, `Game.mode`, remembered):
+- **LEARN / IMPARA: three practice levels** (Jordan, 18 Oct: "We can manually ladder up as we learn the mechanics"),
+  each adding one thing (`Say.level`): 1 Practice battle (one Pokémon each, Energy, attacks), 2 Team (three each, one
+  fighting and the rest on the bench; after a KO its player taps who comes in), 3 Retreat (SWAP / CAMBIA, once a turn,
+  pays the card's retreat cost in Energy; not RETREAT / RITIRATA, which in Italian is also Squirtle's attack). The
+  planned levels 4 to 7 (Evolution, Your hand, Prize cards, Trainers) were dropped on 1 Nov: the Prima Lotta box
+  taught them (see "Learned from playing").
+- **DECKS / MAZZI: building a deck of 60 each for the real game**, taught in the app (Jordan, 1 Nov: "teaching him how
+  to assemble a deck. and teaching me as well"). See "Decks" below.
+- **The real game** (next, when Jordan asks): the iPad as helper during a game with those decks. Hands and decks are
+  hidden, so it keeps track of what's on the table (tap the Pokémon put down or evolved, from the deck's list), damage,
+  Energy, prizes (2 for an ex), the turn checklist and the full rules; Trainers are read aloud by the parent, with
+  plain buttons for what they do (heal, swap, take an Energy off).
 
 @README.md
 
@@ -85,6 +91,17 @@ not built say so. Build the next level only when Jordan asks.
   results are newest first, each with its code and number under it to check against the card. The card, its
   pictures and sprite are fetched from TCGdex/PokeAPI and saved in the app's Documents (`collection.json`); effects
   are read with the same `Data/effects.json` as `tools/cards.py`.
+- **Decks** (`Deck.swift`, `DeckViews.swift`, 1 Nov 2026): his deck and the parent's, in Documents/decks.json. Five
+  steps on the board (`Deck.step`): 1 a type (he taps one of the eight Energy symbols on his half), 2 the Pokémon,
+  about 20 in whole families, 3 the Trainers, about 20, 4 the Energy, which fills the deck up to 60 (shared between
+  the types the attacks need, `energyCards`), 5 the check against the real rules (exactly 60, at most 4 with the same
+  name, at least one Basic, one ACE SPEC and one Radiant at most). The parent's half says each step and why, with
+  what to sort out in yellow (`Deck.tips`: a missing family member, too few Basics, no Trainer that draws or searches,
+  too little or too much Energy); his half shows his job: the symbols, his families with a dashed "?" (the missing
+  one's sprite in grey, looked up from TCGdex, `learn`), the Trainers' pictures, the Energy to count out, "60
+  READY!". ADD CARDS opens the add screen for that deck (`AddView(deck:)`): Pokémon and Trainers go in by camera or
+  search, each with a line on what it is (Basic, "Evolves from", a Trainer's kind: Item, Supporter, Tool, Stadium, and
+  what it does); Energy cards are only counted; − and + for copies; the rules refuse a fifth copy or a second ACE SPEC.
 - **Only your cards** (Jordan, 18 Oct, on build 12's sample cards: "it needs to be blank, and we just add the ones
   that we have"): the Poké Ball chooses from the cards added with CARDS. The 12 sample cards from `cards.txt` are only
   for the cloud Mac's screenshots and test games (`-demo`, `-auto`).
@@ -106,6 +123,11 @@ first real games teach, here, before building the next level.
   cards he likes: every Pokémon that can do damage battles, and whatever stops a battle starting is said in plain
   words where the parent is looking. CI: added evolutions must say "battles yes", and a too-small box must name the
   card that can't battle.
+- Prima Lotta (1 Nov 2026): the box (sold in English as My First Battle: two 17-card decks, a hand of 3, a bench of 3,
+  3 prize tokens, evolutions, Potion and Switch; no Weakness, Resistance or retreat cost) taught his son the hand and
+  Trainers on its own, so levels 4 to 7 went (Jordan: "I don't think we need so many steps"). With about 1,000 cards
+  at home, a lot of them Trainers, they go straight to full 60-card decks. Its cards are on TCGdex as set `mfb`, in
+  English only and with no pictures; they have no number printed at the bottom, so the camera can't read them.
 
 ## Building and shipping
 

@@ -8,9 +8,9 @@ import Observation
 // next attack needs. Level 2, Team: three Pokémon each, one fighting and the others waiting on the bench; when one is
 // knocked out, its player chooses who comes in, and the first to lose the whole team loses. Level 3, Retreat: once a
 // turn, the fighting Pokémon can go back to the bench for one there, paying its retreat cost in Energy. Side 0 is the
-// bottom half of the screen, side 1 the top.
+// bottom half of the screen, side 1 the top. Building a deck for the real game, a mode of its own: Deck.swift.
 
-enum Step { case pick, coin, battle, over }
+enum Step { case pick, coin, battle, over, deck }
 
 /// One Pokémon on the table: its card, the Energy on it and the damage it has taken (kept on the bench too).
 struct Mon {
@@ -91,6 +91,10 @@ struct Pop: Equatable {
     var levelNote: String?    // said when a level that isn't built is tapped
     var pictures = 0          // bumped when card pictures that were missing have downloaded, to redraw
     var captions: [Caption] = []                            // this game's lines, written on the parent's half
+    var mode = Mode(rawValue: UserDefaults.standard.string(forKey: "mode") ?? "") ?? .practice // the practice levels, or the decks
+    var decks: [Deck] = Decks.load() // his deck and the parent's, for the real game (Deck.swift)
+    var building = childSide         // whose deck is being built (step .deck)
+    var addingDeck: Int?             // the add screen is adding cards to this side's deck
 
     let voice = Voice()
     var mine: [Card] = Store.load() // your cards, added with CARDS (AddView): one box for both players
@@ -107,6 +111,7 @@ struct Pop: Equatable {
     @ObservationIgnored var waiting: [Int] = [] // the sides still to bring a Pokémon in after a knockout
     @ObservationIgnored var popID = 0
     @ObservationIgnored var captionID = 0
+    @ObservationIgnored var learning = Set<String>() // Pokémon missing from a deck's family, being looked up
     let fast = UserDefaults.standard.bool(forKey: "fast")
 
     func name(_ s: Int) -> String { sides[s].card?.name(lang) ?? "" }
@@ -170,6 +175,8 @@ struct Pop: Equatable {
             }
         }
         if demo == "add" { adding = true }
+        if demo == "deckadd" { adding = true; addingDeck = childSide } // the add screen for his deck
+        bootDecks()
         if let ids = UserDefaults.standard.string(forKey: "add") { // the cloud Mac: add these cards as the add screen would
             Task {
                 for id in ids.split(separator: ",") {
@@ -182,7 +189,7 @@ struct Pop: Equatable {
             }
         }
         if UserDefaults.standard.bool(forKey: "auto") { Task { await autoplay() } }
-        else if step == .pick { speak(sides[0].card == nil ? intro() : chosenLine()) }
+        else if step == .pick && mode == .practice { speak(sides[0].card == nil ? intro() : chosenLine()) }
         warm()
         if UserDefaults.standard.bool(forKey: "voicetest") { Task { await voiceTest() } }
         if UserDefaults.standard.bool(forKey: "scantest") { Task { await scanTest() } }
@@ -193,6 +200,33 @@ struct Pop: Equatable {
         Task { await repairPictures() }
         Task { await reread() }
         if UserDefaults.standard.bool(forKey: "prerender") { Task { await prerender() } }
+    }
+
+    /// The cloud Mac's deck switches: -deckreset (no decks), -decktype Fire, -deckadd id*copies,… (into his deck, as the
+    /// add screen would), -deckstep n (his deck open at that step), -decktest (Deck.swift).
+    private func bootDecks() {
+        let d = UserDefaults.standard
+        if d.bool(forKey: "deckreset") { decks = [Deck(), Deck()]; saveDecks() }
+        if let t = d.string(forKey: "decktype") { decks[childSide].type = t; saveDecks() }
+        let n = d.integer(forKey: "deckstep")
+        if n > 0 {
+            mode = .decks
+            building = childSide
+            decks[childSide].step = min(n, Deck.steps)
+            step = .deck
+        }
+        if let list = d.string(forKey: "deckadd") {
+            Task {
+                for item in list.split(separator: ",") {
+                    let parts = item.split(separator: "*")
+                    await deckPut(String(parts[0]), parts.count > 1 ? Int(parts[1]) ?? 1 : 1, childSide)
+                }
+                note("deckadd: done, families " + decks[childSide].familyLine)
+                for _ in 0..<40 where !learning.isEmpty { await pause(0.25) }
+                note("deckadd: after looking up, families " + decks[childSide].familyLine)
+            }
+        }
+        if d.bool(forKey: "decktest") { Task { await deckTest() } }
     }
 
     /// Kokoro makes ahead of time the sentences every game says (when the app opens, the language changes or the voice
@@ -297,7 +331,7 @@ struct Pop: Equatable {
         lang = l
         voice.lang = l
         UserDefaults.standard.set(l.rawValue, forKey: "lang")
-        speak(Say.language(l) + (step == .pick && sides[0].card == nil ? " " + intro() : ""))
+        speak(Say.language(l) + (step == .pick && mode == .practice && sides[0].card == nil ? " " + intro() : ""))
         warm()
         for c in sides.compactMap(\.card) { warm(c) }
     }
@@ -336,13 +370,15 @@ struct Pop: Equatable {
         Store.save(mine)
     }
 
-    func openAdding() {
+    func openAdding(deck: Int? = nil) {
         voice.stop()
+        addingDeck = deck
         adding = true
     }
 
     func closeAdding() {
         adding = false
+        addingDeck = nil
         if step == .pick { sides = [Side(), Side()]; speak(intro()) } // the cards may have changed
     }
 
@@ -410,7 +446,8 @@ struct Pop: Equatable {
     func ball() {
         switch step {
         case .pick:
-            if sides.allSatisfy({ $0.card != nil }) { Task { await go() } }
+            if mode == .decks { openDeck(nextToBuild) }
+            else if sides.allSatisfy({ $0.card != nil }) { Task { await go() } }
             else if !canStart { // the reason, shaken on the parent's half
                 Sound.play("pop")
                 withAnimation(.linear(duration: 0.5)) { nudge += 1 }
@@ -419,11 +456,13 @@ struct Pop: Equatable {
             else { choose() }
         case .over: again()
         case .coin, .battle: if !quiet { speak(voice.last) }
+        case .deck: deckForward()
         }
     }
 
     /// Holding the Poké Ball: back to the start (from the battle, or to choose other Pokémon).
     func quit() {
+        if step == .deck { leaveDeck(); return }
         if step == .pick, sides[0].card != nil {
             sides = [Side(), Side()]
             Sound.play("pop")

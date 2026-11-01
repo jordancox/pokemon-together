@@ -54,7 +54,10 @@ struct Card: Codable, Identifiable {
     let name: Words
     let attacks: [Attack]
     let img: [String: String]
+    /// The Pokémon it evolves from (its English name, as on the card: "Evolves from Charmander"), for a deck's families.
+    var from: String? = nil
 
+    var isBasic: Bool { stage == nil || stage == "Basic" }
     var moves: [Attack] { attacks.filter(\.shown) }
     /// Any Pokémon with an attack that does damage battles, at every level. Evolution cards too, on their own as if they
     /// were Basic (Jordan, 20 Oct 2026: "he sometimes just wants to play"; build 38 kept them for level 4, so a box of
@@ -66,6 +69,31 @@ struct Card: Codable, Identifiable {
               let data = try? Data(contentsOf: url) else { note("no cards.json"); return [] }
         do { return try JSONDecoder().decode([Card].self, from: data) } catch { note("cards.json: \(error)"); return [] }
     }()
+}
+
+/// A Trainer card in a deck: its kind (the word printed at its top: Item, Supporter, Tool or Stadium; TCGdex's
+/// trainerType in English) and roughly what it does, read from its English text (`Trainers.does`).
+struct Trainer: Codable, Identifiable {
+    let id: String
+    let name: Words
+    let kind: String
+    let does: String? // draw, search, heal, switch, pull, energy
+    let ace: Bool     // ACE SPEC: only one in a deck
+    let img: [String: String]
+}
+
+enum Trainers {
+    /// What a Trainer does, from its English text, for the line said when it's added to a deck.
+    static func does(_ text: String?) -> String? {
+        let s = (text ?? "").lowercased()
+        if s.contains("draw") && s.contains("card") { return "draw" }
+        if s.contains("search your deck") { return "search" }
+        if s.contains("heal") { return "heal" }
+        if s.contains("opponent's benched pokémon") && s.contains("active spot") { return "pull" }
+        if s.contains("switch your active") { return "switch" }
+        if s.contains("attach") && s.contains("energy") { return "energy" }
+        return nil
+    }
 }
 
 /// The ten Pokémon types (plus Colorless): their colour, the symbol on their Energy and their name.
@@ -116,8 +144,11 @@ enum Art {
     private static let root = Bundle.main.resourceURL!
 
     /// The card's picture in that language, or in the other one (one of the two may not have downloaded).
-    static func card(_ c: Card, _ l: Lang) -> UIImage? {
-        for file in [c.img[l.rawValue], c.img["en"], c.img["it"]].compactMap({ $0 }) {
+    static func card(_ c: Card, _ l: Lang) -> UIImage? { picture(c.img, l) }
+
+    /// A card's picture (a Pokémon's or a Trainer's) from its files by language.
+    static func picture(_ img: [String: String], _ l: Lang) -> UIImage? {
+        for file in [img[l.rawValue], img["en"], img["it"]].compactMap({ $0 }) {
             if let i = cards[file] { return i }
             if let i = UIImage(contentsOfFile: Store.docs.appendingPathComponent("Cards/" + file).path) // added on the iPad
                 ?? UIImage(contentsOfFile: root.appendingPathComponent("Cards/" + file).path) {
@@ -129,9 +160,11 @@ enum Art {
     }
 
     /// The picture files this card should have that aren't there: a download that failed when it was added.
-    static func missing(_ c: Card) -> [String: String] {
+    static func missing(_ c: Card) -> [String: String] { missing(c.img) }
+
+    static func missing(_ img: [String: String]) -> [String: String] {
         let fm = FileManager.default
-        return c.img.filter { _, file in
+        return img.filter { _, file in
             !fm.fileExists(atPath: Store.docs.appendingPathComponent("Cards/" + file).path)
                 && !fm.fileExists(atPath: root.appendingPathComponent("Cards/" + file).path)
         }

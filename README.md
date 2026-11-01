@@ -8,9 +8,10 @@ it matters (HP, the Energy an attack needs, damage, Weakness). The child's half 
 pictures, numbers and single words. The app knows your cards and chooses a fair pair, does the damage maths and keeps
 count. A voice can read the lines aloud, but it's off to start with: the parent does the talking.
 
-The game is learned in levels, each adding one thing from the real game: 1 Practice battle, 2 Team, 3 Retreat,
-4 Evolution, 5 Your hand, 6 Prize cards, 7 Trainers, 8 Full game. Levels 1 to 3 are built so far. Any Pokémon card
-with an attack that does damage can battle, evolved ones too (on their own, as if they were Basic, until level 4).
+The app has separate modes. **Learn** has three practice levels, each adding one thing from the real game:
+1 Practice battle, 2 Team, 3 Retreat. Any Pokémon card with an attack that does damage can battle, evolved ones too
+(on their own, as if they were Basic). **Decks** builds a deck of 60 cards each for the real game, step by step (see
+below). The app's help during the real game comes next.
 
 The voice, when on, is [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) (Apache 2.0), run on the iPad itself by
 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache 2.0), which uses espeak-ng to sound out the words. The
@@ -28,6 +29,13 @@ its player taps who comes in next, and whoever knocks out the other's whole team
 **Level 3, Retreat:** the same teams, and once a turn the fighting Pokémon can retreat to the bench and let another
 come in. It costs as many Energy cards as the circles next to "retreat" at the bottom of its card; its damage stays
 with it.
+
+**Decks:** five steps, on the board. Choose a type (he taps a symbol on his half), add about 20 Pokémon in whole
+families and about 20 Trainers with the camera, count out the Energy that fills the deck up to 60, and check it against
+the real rules (exactly 60, no more than 4 of the same card, at least one Basic Pokémon, one ACE SPEC at most). The
+parent's half says what to do and why; the child's half shows his families with a gap where one is missing, the
+counts, and the Energy cards to count out. Each card added says what it is: a Basic, what it evolves from, a
+Trainer's kind (Item, Supporter, Pokémon Tool, Stadium) and what it does.
 
 ## The cards
 
