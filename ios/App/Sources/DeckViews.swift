@@ -46,7 +46,8 @@ struct DeckGuide: View {
                 pill(d.step == Deck.steps ? Say.doneWord(l) : Say.nextWord(l), strong: true) { game.deckForward() }
             }
         }
-        .padding(.horizontal, 28).padding(.vertical, 18)
+        // the top clear of the middle strip, whose Poké Ball reaches over both halves
+        .padding(.horizontal, 28).padding(.top, 40).padding(.bottom, 18)
         .confirmationDialog(Say.startAgainAsk(l), isPresented: $asking, titleVisibility: .visible) {
             Button(Say.startAgainYes(l), role: .destructive) { game.clearDeck() }
         }
@@ -117,31 +118,24 @@ struct DeckJob: View {
                     }
                 }
             }
-        case 2:
-            VStack(spacing: 16) {
+        case 2: // in the middle of his half: columns only as many as the families, so a few sit centred
+            let families = d.families()
+            VStack(spacing: 22) {
                 Counter(icon: d.type, word: "POKÉMON", n: d.pokemonCount, of: 20)
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 250), spacing: 14)], spacing: 14) {
-                        ForEach(d.families()) { f in FamilyRow(family: f) }
-                    }
-                    .padding(.horizontal, 24)
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(256), spacing: 12), count: min(3, max(1, families.count))), spacing: 12) {
+                    ForEach(families) { f in FamilyRow(family: f) }
                 }
-                .frame(maxHeight: 400)
             }
-            .padding(.top, 20)
-            .frame(maxHeight: .infinity, alignment: .top)
         case 3:
-            VStack(spacing: 18) {
+            VStack(spacing: 22) {
                 Counter(icon: nil, word: Say.trainersWord(l), n: d.trainerCount, of: 20)
-                LazyVGrid(columns: Array(repeating: GridItem(.fixed(68), spacing: 8), count: 10), spacing: 12) {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(68), spacing: 8), count: min(10, max(1, d.trainers.count))), spacing: 12) {
                     ForEach(d.trainers, id: \.card.id) { e in
                         TrainerPicture(t: e.card, lang: l).frame(width: 68, height: 95)
                             .overlay(alignment: .bottomTrailing) { if e.n > 1 { Copies(n: e.n) } }
                     }
                 }
             }
-            .padding(.top, 20)
-            .frame(maxHeight: .infinity, alignment: .top)
         case 4:
             VStack(spacing: 24) {
                 Text(Say.energyWord(l)).font(.system(size: 64, weight: .black, design: .rounded))
@@ -195,24 +189,24 @@ struct Counter: View {
 struct FamilyRow: View {
     let family: Family
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             ForEach(Array(family.slots.enumerated()), id: \.offset) { i, slot in
-                if i > 0 { Image(systemName: "arrow.right").font(.system(size: 20, weight: .heavy)).opacity(0.7) }
+                if i > 0 { Image(systemName: "arrow.right").font(.system(size: 18, weight: .heavy)).opacity(0.7) }
                 switch slot {
                 case .have(let c, let n):
-                    SpriteView(dex: c.dex, box: 64, still: true).frame(width: 66, height: 66)
+                    SpriteView(dex: c.dex, box: 58, still: true).frame(width: 60, height: 60)
                         .overlay(alignment: .bottomTrailing) { if n > 1 { Copies(n: n) } }
                 case .gap(_, let dex):
                     ZStack {
                         Circle().strokeBorder(.yellow, style: StrokeStyle(lineWidth: 4, dash: [8, 6]))
-                        SpriteView(dex: dex, box: 48, still: true).saturation(0).opacity(0.45)
-                        Text("?").font(.system(size: 40, weight: .black, design: .rounded)).foregroundStyle(.yellow)
+                        SpriteView(dex: dex, box: 44, still: true).saturation(0).opacity(0.45)
+                        Text("?").font(.system(size: 36, weight: .black, design: .rounded)).foregroundStyle(.yellow)
                     }
-                    .frame(width: 66, height: 66)
+                    .frame(width: 60, height: 60)
                 }
             }
         }
-        .padding(.horizontal, 12).padding(.vertical, 8)
+        .padding(.horizontal, 10).padding(.vertical, 8)
         .background(RoundedRectangle(cornerRadius: 18).fill(.black.opacity(0.22)))
     }
 }
@@ -320,7 +314,7 @@ struct DecksPanel: View {
         VStack(alignment: .leading, spacing: 12) {
             ForEach([childSide, parentSide], id: \.self) { s in row(s) }
             Spacer(minLength: 4)
-            Text(Say.decksIntro(game.lang))
+            Text(Say.decksIntro(game.lang, his: game.decks[childSide].ready, yours: game.decks[parentSide].ready))
                 .font(.system(size: 21, weight: .semibold, design: .rounded))
                 .fixedSize(horizontal: false, vertical: true)
         }

@@ -333,9 +333,14 @@ enum Say {
         return t(l, "passo \(d.step) di 5: \(d.pokemonCount) Pokémon, \(d.trainerCount) Allenatori", "step \(d.step) of 5: \(d.pokemonCount) Pokémon, \(d.trainerCount) Trainers")
     }
     /// The decks mode on the start screen, under the two decks.
-    static func decksIntro(_ l: Lang) -> String {
-        t(l, "Nella partita vera ognuno gioca con un mazzo di 60 carte. Qui li costruite, uno alla volta, in cinque passi: io vi dico cosa fare, e sulla sua metà dello schermo lui vede cosa cercare. Cominciate dal suo: toccate COSTRUISCI, o la Poké Ball. L'aiuto dell'app durante la partita vera arriverà con il prossimo aggiornamento: per ora si gioca sul tavolo.",
-          "In the real game, each of you plays with a deck of 60 cards. Build them here, one at a time, in five steps: I'll tell you what to do, and his half of the screen shows him what to look for. Start with his: tap BUILD, or the Poké Ball. The app's help during the real game comes in the next update; for now, play it on the table.")
+    static func decksIntro(_ l: Lang, his: Bool, yours: Bool) -> String {
+        let what = t(l, "Nella partita vera ognuno gioca con un mazzo di 60 carte. Qui li costruite, uno alla volta, in cinque passi: io vi dico cosa fare, e sulla sua metà dello schermo lui vede cosa cercare. ",
+                     "In the real game, each of you plays with a deck of 60 cards. Build them here, one at a time, in five steps: I'll tell you what to do, and his half of the screen shows him what to look for. ")
+        let later = t(l, "L'aiuto dell'app durante la partita vera arriverà con il prossimo aggiornamento: per ora si gioca sul tavolo.",
+                      "The app's help during the real game comes in the next update; for now, play it on the table.")
+        if his && yours { return t(l, "I due mazzi sono pronti. ", "Both decks are ready. ") + later }
+        if his { return what + t(l, "Il suo è pronto: ora il tuo, allo stesso modo, e lui ti aiuta. Tocca COSTRUISCI, o la Poké Ball. ", "His is ready: now yours, the same way, with him helping. Tap BUILD, or the Poké Ball. ") + later }
+        return what + t(l, "Cominciate dal suo: toccate COSTRUISCI, o la Poké Ball. ", "Start with his: tap BUILD, or the Poké Ball. ") + later
     }
     static func deckStepName(_ l: Lang, _ n: Int) -> String {
         switch n {

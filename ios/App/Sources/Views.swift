@@ -72,7 +72,8 @@ struct StartView: View {
                     .modifier(Shake(t: CGFloat(game.nudge)))
             }
         }
-        .padding(.horizontal, 28).padding(.vertical, 20)
+        // the top clear of the middle strip, whose Poké Ball reaches over both halves (it hid the mode tabs' top)
+        .padding(.horizontal, 28).padding(.top, 38).padding(.bottom, 20)
     }
 
     private var parentChosen: some View {
